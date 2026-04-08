@@ -169,7 +169,7 @@ object JarLoader {
             val method = clazz!!.getMethod("proxy", Map::class.java)
             methods[key] = method
         } catch (e: Exception) {
-            e.printStackTrace()
+            log.error("添加Proxy失败: key={}", key, e)
         }
     }
 
@@ -182,8 +182,10 @@ object JarLoader {
             val clazz = loaders[key]?.loadClass(Constant.catVodInit)
             val method = clazz?.getMethod("init")
             method?.invoke(clazz)
+        } catch (e: ClassNotFoundException) {
+            log.debug("Init类不存在: {}", Constant.catVodInit)
         } catch (e: Exception) {
-            e.printStackTrace()
+            log.error("调用Init失败: key={}", key, e)
         }
     }
 
@@ -209,8 +211,11 @@ object JarLoader {
             spider.init(ext)
             spiders[spKey] = spider
             return spider
+        } catch (e: ClassNotFoundException) {
+            log.debug("Spider类不存在: {}, api: {}", e.message, api)
+            return Spider()
         } catch (e: Exception) {
-            e.printStackTrace()
+            log.error("加载Spider失败: key={}, api={}", key, api, e)
             return Spider()
         }
     }

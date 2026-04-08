@@ -223,11 +223,16 @@ class PlayerLifecycleManager(
     private suspend fun playingInternal(): Result<Unit> {
         return withContext(lifecycleDispatcher) {
             try {
-                controller.playerPlaying.let { player ->
-                    if (player) {
-                        return@withContext Result.success(Unit)
-                    }
+                // 如果已经在播放，直接返回成功
+                if (controller.playerPlaying) {
+                    log.debug("播放器已经在播放状态")
+                    return@withContext Result.success(Unit)
                 }
+                
+                // 调用 Controller 的 play() 方法开始播放
+                log.debug("调用 Controller.play() 开始播放")
+                controller.play()
+                
                 Result.success(Unit)
             } catch (e: Exception) {
                 log.error("播放失败", e)

@@ -100,6 +100,8 @@ fun main() {
                         try {
                             window.isVisible = false
                             SettingStore.write()
+                            // 清理全局协程资源,避免内存泄漏
+                            GlobalAppState.cancelAllOperations("Application shutdown")
                             Init.stop()
                         } catch (e: Exception) {
                             log.error("关闭应用异常", e)

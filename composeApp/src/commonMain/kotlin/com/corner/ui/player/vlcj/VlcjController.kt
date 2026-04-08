@@ -448,8 +448,9 @@ class VlcjController(val vm: DetailViewModel) : PlayerController {
                     log.debug("重新加载: $mrl")
                     scope.launch {
                         loadURL(mrl!!, 1000)
+                        // 重新加载后同步历史记录
+                        vm.syncHistoryFromController()
                     }
-                    vm.syncHistory()
                 } else {
                     log.error("play() -- 重新加载时url为空,恢复失败！")
                     return@catch

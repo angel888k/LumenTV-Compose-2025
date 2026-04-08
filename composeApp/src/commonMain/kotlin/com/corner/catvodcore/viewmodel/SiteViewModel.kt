@@ -56,9 +56,17 @@ object SiteViewModel {
     val quickSearch: MutableState<CopyOnWriteArrayList<Collect>> =
         mutableStateOf(CopyOnWriteArrayList(listOf(Collect.all())))
 
+    /**
+     * 使用SupervisorJob确保单个任务失败不影响其他任务
+     * 注意: 由于是全局单例,此scope不会自动取消,需手动管理
+     */
     private val supervisorJob = SupervisorJob()
     val viewModelScope = createCoroutineScope(Dispatchers.IO)
 
+    /**
+     * 取消所有正在进行的任务
+     * 应在应用退出或需要重置时调用
+     */
     fun cancelAll() {
         supervisorJob.cancelChildren()
     }

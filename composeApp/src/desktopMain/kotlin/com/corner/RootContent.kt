@@ -138,7 +138,6 @@ fun WindowScope.RootContent(
 
             // FPS 监控组件
             val fpsMonitorEnabled = SettingStore.getSettingItem(SettingType.FPS_MONITOR).toBoolean()
-            log.debug("FPS Monitor enabled: $fpsMonitorEnabled, version: ${settingVersion.version}")
             if (fpsMonitorEnabled) {
                 FpsMonitor(
                     modifier = Modifier
