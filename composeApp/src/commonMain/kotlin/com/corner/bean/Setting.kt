@@ -89,7 +89,8 @@ enum class SettingType(val id: String) {
     M3U8_FILTER_CONFIG("m3u8FilterConfig"),
     CRAWLER_SEARCH_TERMS("crawlerSearchTerms"),
     DOH_ENABLED("dohEnabled"),
-    DOH_SERVER("dohServer");
+    DOH_SERVER("dohServer"),
+    FPS_MONITOR("fpsMonitor");
 
 }
 
@@ -104,7 +105,8 @@ object SettingStore {
         Setting("m3u8FilterConfig", "M3U8 过滤配置", ""),
         Setting("crawlerSearchTerms", "爬虫搜索词", "阿甘正传"),
         Setting("dohEnabled", "DoH启用", "false"),
-        Setting("dohServer", "DoH服务器", "Tencent")
+        Setting("dohServer", "DoH服务器", "Tencent"),
+        Setting("fpsMonitor", "FPS监控", "false")
     )
 
     private var settingFile = SettingFile(mutableListOf(), mutableMapOf())

@@ -7,10 +7,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -28,6 +30,7 @@ import com.corner.catvodcore.viewmodel.DetailFromPage
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.ui.DLNAPlayer
 import com.corner.ui.DetailScene
+import com.corner.ui.FpsMonitor
 import com.corner.ui.HistoryScene
 import com.corner.ui.SettingScene
 import com.corner.ui.nav.vm.*
@@ -37,7 +40,12 @@ import com.corner.ui.search.SearchScene
 import com.corner.ui.video.VideoScene
 import com.corner.util.FirefoxGray
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.corner.bean.SettingType
+import org.slf4j.LoggerFactory
 
+private val log = LoggerFactory.getLogger("RootContent")
 
 @Composable
 fun WindowScope.RootContent(
@@ -60,6 +68,10 @@ fun WindowScope.RootContent(
     }
 
     val scope = rememberCoroutineScope()
+
+    // 创建一个 SettingViewModel 实例来监听设置变化
+    val settingViewModel: SettingViewModel = viewModel { SettingViewModel() }
+    val settingVersion by settingViewModel.state.collectAsState()
 
     scope.launch {
         GlobalAppState.DLNAUrl.collect {
@@ -110,7 +122,7 @@ fun WindowScope.RootContent(
 
                 composable(TVScreen.SettingsScreen.name) {
                     SettingScene(
-                        viewModel { SettingViewModel() },
+                        settingViewModel,
                         config = SettingStore.getM3U8FilterConfig()
                     ) { navController.popBackStack() }
                 }
@@ -123,6 +135,19 @@ fun WindowScope.RootContent(
             SnackBarList()
             val showProgress = GlobalAppState.showProgress.collectAsState()
             LoadingIndicator(showProgress = showProgress.value, withOverlay = true)
+
+            // FPS 监控组件
+            val fpsMonitorEnabled = SettingStore.getSettingItem(SettingType.FPS_MONITOR).toBoolean()
+            log.debug("FPS Monitor enabled: $fpsMonitorEnabled, version: ${settingVersion.version}")
+            if (fpsMonitorEnabled) {
+                FpsMonitor(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    settingVersion = settingVersion.version,
+                    fpsMonitorEnabled = fpsMonitorEnabled
+                )
+            }
         }
     }
 }

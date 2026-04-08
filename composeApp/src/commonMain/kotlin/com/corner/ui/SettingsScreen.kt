@@ -1004,6 +1004,55 @@ fun WindowScope.SettingScene(vm: SettingViewModel, config: M3U8FilterConfig, onC
                 }
             }
 
+            // FPS 监控设置项
+            item {
+                SettingCard(
+                    title = "FPS 监控",
+                    icon = Icons.Default.Info
+                ) {
+                    val fpsMonitorEnabled = remember {
+                        mutableStateOf(SettingStore.getSettingItem(SettingType.FPS_MONITOR).toBoolean())
+                    }
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (fpsMonitorEnabled.value) "FPS 监控：开启" else "FPS 监控：关闭",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = "在屏幕左上角显示当前帧率和系统信息，用于性能调试",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                            Switch(
+                                checked = fpsMonitorEnabled.value,
+                                onCheckedChange = { enabled ->
+                                    fpsMonitorEnabled.value = enabled
+                                    SettingStore.setValue(SettingType.FPS_MONITOR, enabled.toString())
+                                    vm.sync()
+                                    SnackBar.postMsg(
+                                        if (enabled) "FPS 监控已开启,可能需要重启生效" else "FPS 监控已关闭",
+                                        type = SnackBar.MessageType.INFO
+                                    )
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
             // 重置按钮
             item {
                 var showConfirmDialog by remember { mutableStateOf(false) }
