@@ -1,28 +1,13 @@
 name: Build Updater
 
-# 添加手动触发
+# 仅作为可复用工作流，不自动触发
 on:
-  workflow_dispatch:  # 允许手动运行
+  workflow_call:
     inputs:
       release_tag:
         description: 'Release Tag (e.g., v1.0.0)'
         required: true
-        default: 'v1.0.0'
-      is_prerelease:
-        description: 'Is Pre-release?'
-        required: false
-        type: boolean
-        default: false
-      draft_release:
-        description: 'Draft Release?'
-        required: false
-        type: boolean
-        default: false
-#  push:
-#    branches: [ main, master ]
-#    tags: [ 'v*' ]
-#  pull_request:
-#    branches: [ main, master ]
+        type: string
 
 jobs:
   build-updater:
@@ -81,73 +66,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
 
-      - name: Prepare artifact name
-        id: artifact-name
-        run: |
-          echo "artifact_name=updater-${{ matrix.artifact_suffix }}" >> $GITHUB_OUTPUT
-
-      - name: Upload binaries as permanent artifacts
+      - name: Upload updater artifact
         uses: actions/upload-artifact@v4
         with:
-          name: updater-binary-${{ matrix.os }}-${{ matrix.goarch }}
+          name: ${{ matrix.binary_name }}
           path: ./updater/${{ matrix.binary_name }}
-          retention-days: 0  # 永久保存
-
-  create-release:
-    needs: build-updater
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: Determine release info
-        id: release-info
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag_name=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
-            echo "is_manual=true" >> $GITHUB_OUTPUT
-          else
-            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "is_manual=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-
-      - name: Prepare release assets
-        run: |
-          mkdir -p ./release-assets
-          find ./artifacts -name "updater-*" -exec cp {} ./release-assets/ \;
-          
-          # Rename files to include version
-          cd ./release-assets
-          for file in updater-*; do
-            if [ -f "$file" ]; then
-              versioned_name=$(echo "$file" | sed "s/updater-/updater-${{ steps.release-info.outputs.tag_name }}-/g")
-              mv "$file" "$versioned_name"
-            fi
-          done
-          ls -la
-
-      - name: Create Separate Updater Release
-        uses: ncipollo/release-action@v1
-        with:
-          name: "Updater ${{ steps.release-info.outputs.tag_name }}"
-          tag: "updater-${{ steps.release-info.outputs.tag_name }}"  # 使用不同的标签前缀避免冲突
-          artifacts: "./release-assets/*"
-          body: |
-            ## Updater Release ${{ steps.release-info.outputs.tag_name }}
-            
-            This release contains updater binaries for different platforms:
-            
-            - `updater-${{ steps.release-info.outputs.tag_name }}-linux-amd64` - Linux AMD64
-            - `updater-${{ steps.release-info.outputs.tag_name }}-linux-arm64` - Linux ARM64  
-            - `updater-${{ steps.release-info.outputs.tag_name }}-windows-amd64.exe` - Windows AMD64
-            - `updater-${{ steps.release-info.outputs.tag_name }}-macos-amd64` - macOS AMD64
-            - `updater-${{ steps.release-info.outputs.tag_name }}-macos-arm64` - macOS ARM64
-            
-            **Note:** This release is separate from the main project releases and uses the `updater-` prefix to avoid conflicts.
-          draft: ${{ github.event.inputs.draft_release || 'false' }}
-          prerelease: ${{ github.event.inputs.is_prerelease || 'false' }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          retention-days: 1

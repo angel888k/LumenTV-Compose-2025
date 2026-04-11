@@ -10,72 +10,9 @@ jobs:
     uses: ./.github/workflows/set-tag-workflow.yml
 
   build-updater:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            binary_name: updater-linux-amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-            binary_name: updater-linux-arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            binary_name: updater-windows-amd64.exe
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            binary_name: updater-macos-amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-            binary_name: updater-macos-arm64
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 🐹 Set up Go environment
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache: true
-
-      - name: 🔧 Build updater for ${{ matrix.goos }}/${{ matrix.goarch }}
-        working-directory: ./updater
-        shell: bash
-        run: |
-          echo "🚀 开始构建 updater: ${{ matrix.binary_name }}"
-          echo "🖥️  目标平台: ${{ matrix.goos }}/${{ matrix.goarch }}"
-          
-          go mod tidy
-          echo "📦 Go modules 已同步"
-          
-          BUILD_CMD="GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o ../${{ matrix.binary_name }} ."
-          echo "🔨 执行构建命令: $BUILD_CMD"
-          
-          eval $BUILD_CMD
-          
-          if [ -f "../${{ matrix.binary_name }}" ]; then
-            echo "✅ Updater 构建成功: ${{ matrix.binary_name }}"
-            ls -la "../${{ matrix.binary_name }}"
-            echo "📏 文件大小: $(du -h "../${{ matrix.binary_name }}" | cut -f1)"
-          else
-            echo "❌ Updater 构建失败: ${{ matrix.binary_name }} 未找到"
-            exit 1
-          fi
-
-      - name: 📤 Upload updater artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.binary_name }}
-          path: ./${{ matrix.binary_name }}
-          retention-days: 1
+    uses: ./.github/workflows/build-updater.yml
+    with:
+      release_tag: ${{ needs.set-tag.outputs.tag }}
 
   build-win:
     runs-on: windows-latest
@@ -94,8 +31,8 @@ jobs:
       - name: 🏗️ Build LumenTV Windows
         run: |
           echo "🔨 开始构建 LumenTV Windows 版本"
-            ./gradlew packageReleaseDistributionForCurrentOS --quiet --console=plain
-            ./gradlew createReleaseDistributable --quiet --console=plain
+          ./gradlew packageReleaseDistributionForCurrentOS --quiet --console=plain
+          ./gradlew createReleaseDistributable --quiet --console=plain
       - name: 📦 Package Windows application
         shell: pwsh
         run: |
@@ -297,6 +234,47 @@ jobs:
           }
           EOF
 
+      - name: 📖 Extract changelog for current version
+        id: changelog
+        run: |
+          echo "📖 从 CHANGELOG.md 提取 ${{ needs.set-tag.outputs.tag }} 的更新日志"
+          
+          # 去除版本号前缀的 'v' (CHANGELOG 中使用 v1.1.6 格式)
+          VERSION_WITH_V="${{ needs.set-tag.outputs.tag }}"
+          
+          # 使用 awk 提取对应版本的更新日志
+          CHANGELOG=$(awk -v version="$VERSION_WITH_V" '
+            BEGIN { found=0; content="" }
+            /^## / {
+              if (found) exit
+              if ($2 == version) {
+                found=1
+                next
+              }
+            }
+            found && /^## / { exit }
+            found { 
+              if (content != "") content = content "\n"
+              content = content $0
+            }
+            END { print content }
+          ' CHANGELOG.md)
+          
+          # 如果未找到对应的版本日志，使用默认文本
+          if [ -z "$CHANGELOG" ]; then
+            echo "⚠️ 未找到 $VERSION_WITH_V 的更新日志，使用默认文本"
+            CHANGELOG="- 发布新版本 $VERSION_WITH_V\n- 详细更新内容请查看 CHANGELOG.md"
+          fi
+          
+          echo "✅ 提取到的更新日志:"
+          echo "$CHANGELOG"
+          
+          # 将多行内容保存到环境变量（使用 GitHub Actions 的多行语法）
+          # 注意：需要对内容进行转义，避免 YAML 解析错误
+          echo "changelog<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -306,22 +284,28 @@ jobs:
           body: |
             ## LumenTV ${{ needs.set-tag.outputs.tag }} 发布
             
-            ### 🔄 更新内容
-            - 发布独立的 updater 组件
-            - 优化自动更新流程
-            - 修复已知问题
+            ### 📝 更新日志
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ---
             
             ### 📦 包含文件
-            - Windows: MSI 安装包和 ZIP 压缩包
-            - Linux: DEB 包和 ZIP 压缩包  
-            - macOS: DMG 镜像和 ZIP 压缩包
-            - Updater: 各平台独立的更新器组件
-            - version.json: 版本信息文件
+            - **Windows**: MSI 安装包和 ZIP 压缩包
+            - **Linux**: DEB 包和 ZIP 压缩包  
+            - **macOS**: DMG 镜像和 ZIP 压缩包
+            - **Updater**: 各平台独立的更新器组件
+            - **version.json**: 版本信息文件
             
-            ### 🛠️ 技术说明
-            - updater 组件独立发布，便于自动更新系统使用
-            - 应用程序包不包含 updater，减小包体积
-            - 支持按需下载对应平台的 updater
+            ### 🔗 快速下载
+            
+            | 平台 | 安装包 | 压缩包 |
+            |------|--------|--------|
+            | Windows | [MSI](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-win-${{ needs.set-tag.outputs.tag }}.msi) | [ZIP](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-win-${{ needs.set-tag.outputs.tag }}.zip) |
+            | Linux | [DEB](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-linux-${{ needs.set-tag.outputs.tag }}.deb) | [ZIP](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-linux-${{ needs.set-tag.outputs.tag }}.zip) |
+            | macOS | [DMG](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-mac-${{ needs.set-tag.outputs.tag }}.dmg) | [ZIP](https://github.com/${{ github.repository }}/releases/download/${{ needs.set-tag.outputs.tag }}/LumenTV-mac-${{ needs.set-tag.outputs.tag }}.zip) |
+            
+            > 💡 提示：完整的历史更新记录请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
           draft: false
           prerelease: false
     permissions:
