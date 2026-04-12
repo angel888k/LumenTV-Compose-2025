@@ -4,6 +4,7 @@ package com.corner.util.net
  * 通用http客户端
  * */
 
+import com.corner.util.adblock.AdDomainInterceptor
 import com.github.catvod.bean.Doh
 import org.slf4j.LoggerFactory
 import kotlinx.serialization.json.Json
@@ -22,6 +23,9 @@ import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.*
+import com.corner.util.net.interceptor.Interceptors.deflateInterceptor
+import com.corner.util.net.interceptor.Interceptors.adDomainInterceptor
+import com.corner.util.net.interceptor.Interceptors.m3u8AdInterceptor
 
 class Http {
     companion object {
@@ -96,8 +100,9 @@ class Http {
                     .hostnameVerifier(getHostnameVerifier())
                     .dispatcher(dispatcher)
                     .dns(dns())
-                    .addInterceptor(com.github.catvod.net.OkhttpInterceptor())
-                    .addInterceptor(com.corner.util.m3u8.M3U8AdFilterInterceptor.Interceptor())
+                    .addInterceptor(deflateInterceptor)
+                    .addInterceptor(adDomainInterceptor)
+                    .addInterceptor(m3u8AdInterceptor)
             }
 
 
@@ -134,6 +139,13 @@ class Http {
         @Suppress("unused")
         fun setProxy(proxy: String) {
             ProxySelect.setDefault(getSelector(proxy))
+        }
+        
+        /**
+         * 获取广告域名拦截器实例
+         */
+        fun getAdDomainInterceptor(): AdDomainInterceptor {
+            return adDomainInterceptor
         }
 
         fun setProxyHosts(hosts: List<String>?) {

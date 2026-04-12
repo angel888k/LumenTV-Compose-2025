@@ -195,7 +195,6 @@ class VlcjFrameController(
     }
 
     override fun vlcjFrameInit() {
-        log.info("播放器初始化")
         try {
             val lifecycleManager = PlayerLifecycleManager(controller)
             controller.setLifecycleManager(lifecycleManager)
@@ -243,7 +242,6 @@ class VlcjFrameController(
     }
 
     fun setControllerHistory(history: History) {
-        log.debug("VlcjFrameController - 设置历史记录{}", history)
         controller.scope.launch {
             controller.history.emit(history)
         }

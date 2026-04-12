@@ -51,6 +51,14 @@ class TVLogConfigurator {
 
             val jettyLogger = builder.newLogger("org.eclipse.jetty", Level.OFF)
             builder.add(jettyLogger)
+            
+            // 抑制 Netty 的连接断开噪音
+            val nettyLogger = builder.newLogger("io.netty", Level.WARN)
+            builder.add(nettyLogger)
+            
+            // 抑制 Ktor Application 的 I/O 操作失败日志
+            val ktorAppLogger = builder.newLogger("io.ktor.server.application.Application", Level.WARN)
+            builder.add(ktorAppLogger)
 
             // 应用配置
             val ctx = LogManager.getContext(false) as LoggerContext
