@@ -116,7 +116,7 @@ class Http {
 
 
         fun setDoh(doh: Doh) {
-            log.info("[DNS Setting]Setting DoH: ${doh.name}, URL: ${doh.url}")
+            log.info("Setting DoH: ${doh.name}, URL: ${doh.url}")
             val dnsClient =
                 OkHttpClient().newBuilder().cache(Cache(com.corner.util.io.Paths.doh(), 8000))
                     .callTimeout(Duration.of(5, ChronoUnit.SECONDS))
@@ -125,15 +125,15 @@ class Http {
                 DnsOverHttps.Builder().client(dnsClient).bootstrapDnsHosts(doh.hosts).url(doh.url.toHttpUrl()).build()
             client?.dispatcher?.executorService?.shutdownNow()
             client = builder.build()
-            log.info("[DNS Setting]DoH configured successfully")
+            log.info("DoH configured successfully")
         }
 
         fun resetDoh() {
-            log.info("[DNS Setting]Resetting DoH to system DNS")
+            log.info("Resetting DoH to system DNS")
             doh = null
             client?.dispatcher?.executorService?.shutdownNow()
             client = builder.build()
-            log.info("[DNS Setting]DoH reset to system DNS successfully")
+            log.info("DoH reset to system DNS successfully")
         }
 
         @Suppress("unused")

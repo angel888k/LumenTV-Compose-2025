@@ -5,15 +5,15 @@ import com.corner.bean.SettingStore
 import com.corner.bean.SettingType
 import com.corner.util.Constants
 import com.corner.util.SysVerUtil
-import com.corner.util.thisLogger
 import com.corner.util.trimBlankChar
 import org.apache.commons.lang3.StringUtils
+import org.slf4j.LoggerFactory
 import uk.co.caprica.vlcj.factory.discovery.provider.DiscoveryDirectoryProvider
 import java.io.File
 
 
 class CustomDirectoryDiscovery:DiscoveryDirectoryProvider {
-    private val log = thisLogger()
+    private val log = LoggerFactory.getLogger("CustomDirectory")
     override fun priority(): Int {
         return 99999
     }

@@ -29,7 +29,7 @@ class AdDomainInterceptor : Interceptor {
      */
     fun setAdDomains(domains: List<String>) {
         adDomains = domains
-        log.info("[AdBlock] Updated ad domain list, count: ${domains.size}")
+        log.info("Updated ad domain list, count: ${domains.size}")
     }
     
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -39,7 +39,7 @@ class AdDomainInterceptor : Interceptor {
         
         // 检查是否是广告域名
         if (host.isNotBlank() && isAdDomain(host)) {
-            log.info("[AdBlock] Blocked ad request: $url")
+            log.info("Blocked ad request: $url")
             
             // 返回空响应（类似 WebView 的 empty 对象）
             return Response.Builder()
@@ -75,11 +75,11 @@ class AdDomainInterceptor : Interceptor {
             return try {
                 val matches = host.matches(pattern.toRegex())
                 if (matches) {
-                    log.debug("[AdBlock] Regex matched: host=$host, pattern=$pattern")
+                    log.debug("Regex matched: host=$host, pattern=$pattern")
                 }
                 matches
             } catch (e: Exception) {
-                log.warn("[AdBlock] Invalid regex pattern: $pattern", e)
+                log.warn("Invalid regex pattern: $pattern", e)
                 false
             }
         }
@@ -87,7 +87,7 @@ class AdDomainInterceptor : Interceptor {
         // 2. 简单字符串包含匹配（忽略大小写）
         val contains = host.contains(pattern, ignoreCase = true)
         if (contains) {
-            log.debug("[AdBlock] Pattern matched: host=$host, pattern=$pattern")
+            log.debug("Pattern matched: host=$host, pattern=$pattern")
         }
         return contains
     }

@@ -71,48 +71,55 @@ class TVLogConfigurator {
         }
 
         private fun createConsoleAppender(builder: ConfigurationBuilder<BuiltConfiguration>): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
+            val pattern = "%d{HH:mm:ss.SSS} %highlight{%-5level}{FATAL=red bold, ERROR=red, WARN=yellow bold, INFO=green, DEBUG=cyan, TRACE=blue} | %-15.15thread | %20.20logger{0} | %msg%n"
+
             return builder.newAppender("Console", "CONSOLE")
                 .addAttribute("target", "SYSTEM_OUT")
                 .add(
                     builder.newLayout("PatternLayout")
-                        .addAttribute("pattern", "%d{HH:mm:ss.SSS} %-5level [*%-15.15thread] *%-15.15logger{0} %msg%n")
+                        .addAttribute("pattern", pattern)
+                        .addAttribute("disableAnsi", "false")
+                        .addAttribute("noConsoleNoAnsi", "false")
                         .addAttribute("charset", "UTF-8")
                 )
         }
 
         private fun createFileAppender(builder: ConfigurationBuilder<BuiltConfiguration>): org.apache.logging.log4j.core.config.builder.api.AppenderComponentBuilder {
             val logPath = Paths.logPath().toString()
-            val fileName = "$logPath/TV.log"
-            val filePattern = "$logPath/TV_%d{yyyy-MM-dd}.log"
+            val fileName = "$logPath/LumenTV.log"
+            // 按日期和大小滚动：TV_2024-01-15_1.log.gz
+            val filePattern = "$logPath/LumenTV_%d{yyyy-MM-dd}_%i.log.gz"
 
             val appender = builder.newAppender("RollingFile", "RollingFile")
                 .addAttribute("fileName", fileName)
                 .addAttribute("filePattern", filePattern)
                 .addAttribute("append", true)
+                .addAttribute("immediateFlush", "true")  // 立即刷新，避免日志丢失
 
-            // 添加 Layout
             val layout = builder.newLayout("PatternLayout")
-                .addAttribute("pattern", "%d %-5level [%thread] %logger{0}: %msg%n")
+                .addAttribute("pattern", "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%logger{0}] %msg%n")
                 .addAttribute("charset", "UTF-8")
             appender.add(layout)
 
-            // 添加 Policies
             val policies = builder.newComponent("Policies")
-            policies.addComponent(
-                builder.newComponent("SizeBasedTriggeringPolicy")
-                    .addAttribute("size", "50MB")
-            )
+
             policies.addComponent(
                 builder.newComponent("TimeBasedTriggeringPolicy")
                     .addAttribute("interval", "1")
-                    .addAttribute("modulate", true)
+                    .addAttribute("modulate", true)  // 在午夜时滚动
+            )
+
+            policies.addComponent(
+                builder.newComponent("SizeBasedTriggeringPolicy")
+                    .addAttribute("size", "50 MB")
             )
             appender.addComponent(policies)
 
-            // 添加 RolloverStrategy
+            // 添加 RolloverStrategy - 最多保留30个文件（约30天）
             val strategy = builder.newComponent("DefaultRolloverStrategy")
-                .addAttribute("max", "5")
-                .addAttribute("fileIndex", "min")
+                .addAttribute("max", "30")  // 最多保留30个归档文件
+                .addAttribute("fileIndex", "min")  // 从最小索引开始删除
+                .addAttribute("compressionLevel", "9")  // 最高压缩级别
             appender.addComponent(strategy)
 
             return appender

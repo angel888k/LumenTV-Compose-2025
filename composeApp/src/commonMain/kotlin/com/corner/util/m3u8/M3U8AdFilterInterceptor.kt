@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 
 
-private val log = LoggerFactory.getLogger("M3U8AdFilterInterceptor")
+private val log = LoggerFactory.getLogger("M3U8Interceptor")
 
 class M3U8AdFilterInterceptor {
     class Interceptor() : okhttp3.Interceptor {

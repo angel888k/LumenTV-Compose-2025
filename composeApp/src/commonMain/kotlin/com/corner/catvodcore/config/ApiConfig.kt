@@ -177,9 +177,9 @@ object ApiConfig {
             // 使用 Http 类中的单例拦截器
             val interceptor = Http.getAdDomainInterceptor()
             interceptor.setAdDomains(adDomains)
-            log.info("[AdBlock] Initialized with ${adDomains.size} ad domains")
+            log.info("Initialized with ${adDomains.size} ad domains")
         } else {
-            log.debug("[AdBlock] No ad domains configured")
+            log.debug("No ad domains configured")
         }
     }
 
