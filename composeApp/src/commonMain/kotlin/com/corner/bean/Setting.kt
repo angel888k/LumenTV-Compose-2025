@@ -90,7 +90,8 @@ enum class SettingType(val id: String) {
     CRAWLER_SEARCH_TERMS("crawlerSearchTerms"),
     DOH_ENABLED("dohEnabled"),
     DOH_SERVER("dohServer"),
-    FPS_MONITOR("fpsMonitor");
+    FPS_MONITOR("fpsMonitor"),
+    MINI_PROGRESS_BAR("miniProgressBar");
 
 }
 
@@ -106,7 +107,8 @@ object SettingStore {
         Setting("crawlerSearchTerms", "爬虫搜索词", "阿甘正传"),
         Setting("dohEnabled", "DoH启用", "false"),
         Setting("dohServer", "DoH服务器", "Tencent"),
-        Setting("fpsMonitor", "FPS监控", "false")
+        Setting("fpsMonitor", "FPS监控", "false"),
+        Setting("miniProgressBar", "迷你进度条", "false")
     )
 
     private var settingFile = SettingFile(mutableListOf(), mutableMapOf())

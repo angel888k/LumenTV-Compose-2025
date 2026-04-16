@@ -1,10 +1,13 @@
 package com.corner.ui
 
-import com.corner.catvodcore.viewmodel.SiteViewModel
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,9 +39,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +70,7 @@ import com.corner.bean.*
 import com.corner.bean.enums.PlayerType
 import com.corner.catvodcore.config.ApiConfig
 import com.corner.catvodcore.enum.ConfigType
+import com.corner.catvodcore.viewmodel.SiteViewModel
 import com.corner.util.AppVersion
 import com.corner.util.io.Paths
 import com.corner.catvodcore.viewmodel.GlobalAppState.hideProgress
@@ -93,23 +97,37 @@ import com.corner.util.net.Http
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.util.m3u8.M3U8FilterConfig
 import com.github.catvod.bean.Doh
-import kotlinx.coroutines.withContext
 import lumentv_compose.composeapp.generated.resources.LumenTV_icon_svg
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
 
 private val log = LoggerFactory.getLogger("SettingsScreen")
 
+enum class SettingsCategory(
+    val title: String,
+    val icon: ImageVector
+) {
+    GENERAL("常规", Icons.Filled.Settings),
+    VOD("点播", Icons.Filled.LiveTv),
+    PLAYER("播放器", Icons.Filled.PlayCircle),
+    NETWORK("网络", Icons.Filled.SystemUpdate),
+    ADVANCED("高级", Icons.Filled.Code),
+    ABOUT("关于", Icons.Filled.Info),
+
+}
+
 @Composable
 fun WindowScope.SettingScene(vm: SettingViewModel, config: M3U8FilterConfig, onClickBack: () -> Unit) {
     val model = vm.state.collectAsState()
     var showAboutDialog by remember { mutableStateOf(false) }
     val isDarkTheme by GlobalAppState.isDarkTheme.collectAsState()
-    val config = remember { mutableStateOf(SettingStore.getM3U8FilterConfig()) }
+    val filterConfig = remember { mutableStateOf(SettingStore.getM3U8FilterConfig()) }
     val isAdFilterEnabled by remember { mutableStateOf(SettingStore.isAdFilterEnabled()) }
     var adFilterChecked by remember { mutableStateOf(isAdFilterEnabled) }
     var showRestartDialog by remember { mutableStateOf(false) }
     val updateCheckState by vm.updateCheckState.collectAsState()
+
+    var selectedCategory by remember { mutableStateOf(SettingsCategory.GENERAL) }
 
     DisposableEffect("setting") {
         vm.sync()
@@ -123,9 +141,8 @@ fun WindowScope.SettingScene(vm: SettingViewModel, config: M3U8FilterConfig, onC
         modifier = Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
     ) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            // 顶部应用栏
-            WindowDraggableArea {
+        Column(Modifier.fillMaxSize()) {
+            WindowDraggableArea(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 ControlBar(
                     leading = {
                         BackRow(modifier = Modifier.align(Alignment.Start), { onClickBack() }) {
@@ -169,7 +186,7 @@ fun WindowScope.SettingScene(vm: SettingViewModel, config: M3U8FilterConfig, onC
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Code, // 或其他合适的图标
+                                    imageVector = Icons.Default.Code,
                                     contentDescription = "日志目录",
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
@@ -213,954 +230,547 @@ fun WindowScope.SettingScene(vm: SettingViewModel, config: M3U8FilterConfig, onC
                     }
                 )
             }
-        }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(16.dp, top = 80.dp, end = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 广告过滤设置项
-            item {
-                SettingCard(
-                    title = "广告过滤设置",
-                    icon = Icons.Default.Block
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (adFilterChecked) "广告过滤：开启" else "广告过滤：关闭",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Switch(
-                            checked = adFilterChecked,
-                            onCheckedChange = {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            Row(Modifier.fillMaxSize()) {
+                SettingsNavigationRail(
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { selectedCategory = it },
+                    modifier = Modifier.width(90.dp)
+                        .fillMaxHeight()
+                        .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 16.dp)
+                )
+
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                AnimatedContent(
+                    targetState = selectedCategory,
+                    transitionSpec = {
+                        slideInHorizontally { fullWidth -> fullWidth } togetherWith
+                                slideOutHorizontally { fullWidth -> -fullWidth }
+                    },
+                    label = "settings_category_transition"
+                ) { category ->
+                    when (category) {
+                        SettingsCategory.GENERAL -> GeneralSettingsContent(
+                            vm = vm,
+                            model = model,
+                            isDarkTheme = isDarkTheme,
+                            adFilterChecked = adFilterChecked,
+                            onAdFilterChange = {
                                 adFilterChecked = it
                                 SettingStore.setAdFilterEnabled(it)
                                 vm.sync()
                             },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                            filterConfig = filterConfig,
+                            showRestartDialog = { showRestartDialog = true },
+                            modifier = Modifier.fillMaxSize()
                         )
-                    }
 
-                    // 仅在广告过滤开启时显示配置项
-                    if (adFilterChecked) {
-                        var tsNameLenExtend: Int by remember { mutableStateOf(config.value.tsNameLenExtend) }
-                        var theExtinfBenchmarkN: Int by remember { mutableStateOf(config.value.theExtinfBenchmarkN) }
-                        var violentFilterModeFlag by remember { mutableStateOf(config.value.violentFilterModeFlag) }
-
-                        // 同步配置变化到本地状态
-                        LaunchedEffect(config.value.tsNameLenExtend) {
-                            tsNameLenExtend = config.value.tsNameLenExtend
-                        }
-                        LaunchedEffect(config.value.theExtinfBenchmarkN) {
-                            theExtinfBenchmarkN = config.value.theExtinfBenchmarkN
-                        }
-                        LaunchedEffect(config.value.violentFilterModeFlag) {
-                            violentFilterModeFlag = config.value.violentFilterModeFlag
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("TS 前缀长度容错值")
-                                Text(
-                                    text = "$tsNameLenExtend (默认: 1)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Slider(
-                                value = tsNameLenExtend.toFloat(),
-                                onValueChange = { newValue ->
-                                    // 使用四舍五入获得更准确的整数值
-                                    val newInt = newValue.roundToInt()
-                                    // 确保值在有效范围内（0到5）
-                                    val clampedValue = newInt.coerceIn(0, 5)
-                                    tsNameLenExtend = clampedValue
-                                    config.value = config.value.copy(tsNameLenExtend = clampedValue)
-                                    SettingStore.setM3U8FilterConfig(config.value)
-                                    showRestartDialog = true
-                                },
-                                valueRange = 0f..5f,
-                                steps = 4 // 修正为5步，产生0-5共6个离散值
-                            )
-                            Text(
-                                text = "用于匹配TS文件名的前缀长度容错。当TS文件名与预期模式不完全匹配时，允许的前缀长度偏差值。设为0表示严格匹配，增大可提高容错能力。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            // 添加分割线
-                            HorizontalDivider(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("EXTINF 基准值")
-                                Text(
-                                    text = "${theExtinfBenchmarkN.toInt()} (默认: 5)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Slider(
-                                value = theExtinfBenchmarkN.toFloat(),
-                                onValueChange = { newValue ->
-                                    // 使用四舍五入获得更准确的整数值
-                                    val newInt = newValue.roundToInt()
-                                    // 确保值在有效范围内
-                                    val clampedValue = newInt.coerceIn(1, 10)
-                                    theExtinfBenchmarkN = newInt
-                                    config.value = config.value.copy(theExtinfBenchmarkN = clampedValue)
-                                    SettingStore.setM3U8FilterConfig(config.value)
-                                    showRestartDialog = true
-                                },
-                                valueRange = 1f..10f,
-                                steps = 8 // 产生 10 个整数档位：1 到 10
-                            )
-                            Text(
-                                text = "相同描述行阈值：用于判断是否进入广告段。若连续相同的 #EXTINF 行数超过此值，将触发广告过滤逻辑。默认值通常为 3~5。若正常内容被误判为广告，可调大；若广告漏过，可调小。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                            // 添加分割线
-                            HorizontalDivider(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("暴力拆解模式")
-                                Text(
-                                    text = if (violentFilterModeFlag) "开启" else "关闭",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = violentFilterModeFlag,
-                                onCheckedChange = {
-                                    violentFilterModeFlag = it
-                                    config.value.violentFilterModeFlag = it
-                                    SettingStore.setM3U8FilterConfig(config.value)
-                                    showRestartDialog = true
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                            Text(
-                                text = "暴力过滤模式：开启后将直接移除所有 #EXT-X-DISCONTINUITY 行（常用于广告插入点）。适用于复杂广告场景，但可能导致正常内容丢失（如节目切换）。仅在普通模式无法过滤广告时启用。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            // 新增主题切换卡片
-            item {
-                SettingCard(
-                    title = "主题设置",
-                    icon = Icons.Default.Palette
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (isDarkTheme) "当前主题：暗色模式" else "当前主题：亮色模式",
-                            style = MaterialTheme.typography.bodyMedium
+                        SettingsCategory.VOD -> VodSettingsContent(
+                            vm = vm,
+                            model = model,
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Switch(
-                            checked = isDarkTheme,
-                            onCheckedChange = {
-                                GlobalAppState.isDarkTheme.value = it
-                                try {
-                                    // 保存新的主题状态到 SettingStore
-                                    SettingStore.setValue(SettingType.THEME, if (it) "dark" else "light")
-                                } catch (e: Exception) {
-                                    // 打印错误日志，方便排查问题
-                                    e.printStackTrace()
-                                }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+
+                        SettingsCategory.PLAYER -> PlayerSettingsContent(
+                            vm = vm,
+                            model = model,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        SettingsCategory.NETWORK -> NetworkSettingsContent(
+                            vm = vm,
+                            model = model,
+                            updateCheckState = updateCheckState,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        SettingsCategory.ADVANCED -> AdvancedSettingsContent(
+                            vm = vm,
+                            model = model,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        SettingsCategory.ABOUT -> AboutSettingsContent(
+                            onShowAbout = { showAboutDialog = true },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
             }
-
-            item {
-                SettingCard(title = "点播源配置", icon = Icons.Default.LiveTv) {
-                    val focusRequester = remember { FocusRequester() }
-                    val isExpand = remember { mutableStateOf(false) }
-                    val setting = derivedStateOf { model.value.settingList.getSetting(SettingType.VOD) }
-                    val vodConfigList = derivedStateOf { model.value.dbConfigList }
-
-                    // 本地状态管理
-                    var textValue by remember { mutableStateOf(setting.value?.value ?: "") }
-
-                    // 同步外部状态变化
-                    LaunchedEffect(setting.value?.value) {
-                        setting.value?.value?.let {
-                            if (textValue != it) textValue = it
-                        }
-                    }
-
-                    // 初始焦点设置
-                    LaunchedEffect(isExpand.value) {
-                        if (isExpand.value) {
-                            vm.getConfigAll()
-                            focusRequester.requestFocus()
-                            delay(100) // 稍延迟确保布局稳定
-                        }
-                    }
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(Modifier.fillMaxSize()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                //输入框
-                                OutlinedTextField(
-                                    value = textValue,
-                                    onValueChange = { newValue ->
-                                        textValue = newValue
-                                        SettingStore.setValue(SettingType.VOD, newValue)
-                                        vm.sync()
-                                    },
-                                    label = { Text("输入点播源地址") }, // 保留输入框提示
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .focusRequester(focusRequester)
-                                        .weight(1f)
-                                        .onFocusEvent { isExpand.value = it.isFocused },
-                                    keyboardOptions = KeyboardOptions(
-                                        imeAction = ImeAction.Done,
-                                        keyboardType = KeyboardType.Uri
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    trailingIcon = {
-                                        Row {
-                                            // 清空按钮
-                                            if (textValue.isNotEmpty()) {
-                                                IconButton(
-                                                    onClick = {
-                                                        textValue = ""
-                                                        SettingStore.setValue(SettingType.VOD, "")
-                                                        vm.sync()
-                                                    }
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.Close,
-                                                        "清空",
-                                                        tint = MaterialTheme.colorScheme.error
-                                                    )
-                                                }
-                                            }
-                                            // 粘贴按钮
-                                            IconButton(
-                                                onClick = {
-                                                    val clipboard = Toolkit.getDefaultToolkit().systemClipboard
-                                                    try {
-                                                        val text = clipboard.getData(DataFlavor.stringFlavor) as? String
-                                                        text?.let {
-                                                            textValue = it
-                                                            SettingStore.setValue(SettingType.VOD, it)
-                                                            vm.sync()
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        log.error("粘贴失败: ${e.message}")
-                                                    }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.ContentPaste,
-                                                    "粘贴",
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                        }
-                                    }
-                                )
-
-                                // 确定按钮
-                                Button(
-                                    onClick = { setConfig(textValue) },
-                                    modifier = Modifier.height(60.dp).padding(top = 8.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Text("确定")
-                                }
-                                DropdownMenu(
-                                    isExpand.value,
-                                    { isExpand.value = false },
-                                    modifier = Modifier.fillMaxWidth(0.8f),
-                                    properties = PopupProperties(focusable = false)
-                                ) {
-                                    vodConfigList.value.forEach {
-                                        DropdownMenuItem(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            text = { Text(it.url ?: "") },
-                                            onClick = {
-                                                setConfig(it.url)
-                                                isExpand.value = false
-                                            }, trailingIcon = {
-                                                IconButton(onClick = {
-                                                    vm.deleteHistoryById(it)
-                                                }) {
-                                                    Icon(Icons.Default.Close, "delete the config")
-                                                }
-                                            })
-                                    }
-                                }
-                            }
-                        }
-                        Text(
-                            text = "需要配置点播源才能获取到视频内容\n" +
-                                    " \n" +
-                                    "格式：\n" +
-                                    "file://C:\\\\json\\\\config.json \n" +
-                                    "或\n" +
-                                    "http://example.com/config.json \n",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            // 日志级别设置项
-            item {
-                SettingCard(
-                    title = "日志级别",
-                    icon = Icons.AutoMirrored.Filled.ListAlt
-                ) {
-                    val current = derivedStateOf {
-                        model.value.settingList.getSetting(SettingType.LOG)?.value ?: logLevel[0]
-                    }
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            logLevel.forEach { level ->
-                                FilterChip(
-                                    selected = level == current.value,
-                                    leadingIcon = if (current.value == level) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Filled.Done,
-                                                contentDescription = "Done icon",
-                                                modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                                tint = MaterialTheme.colorScheme.onPrimary
-                                            )
-                                        }
-                                    } else {
-                                        null
-                                    },
-                                    onClick = {
-                                        SettingStore.setValue(SettingType.LOG, level)
-                                        vm.sync()
-                                        SnackBar.postMsg("重启生效", type = SnackBar.MessageType.INFO)
-                                    },
-                                    label = { Text(level) },
-                                    modifier = Modifier.weight(1f),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                )
-                            }
-                        }
-                        Text(
-                            text = "日志级别用于记录应用运行时的信息和错误,默认级别为DEBUG;使用DEBUG级别可能会导致日志文件变大",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            // 播放器设置项
-            item {
-                SettingCard(
-                    title = "播放器设置",
-                    icon = Icons.Default.PlayCircle
-                ) {
-                    val playerSetting = derivedStateOf {
-                        val arr = model.value.settingList.getSetting(SettingType.PLAYER)
-                            ?.value?.getPlayerSetting()?.toMutableList()
-                            ?: mutableListOf(PlayerType.Innie.id, "")
-
-                        if (listOf("true", "false").contains(arr[0])) {
-                            if (arr[0].toBoolean()) {
-                                arr[0] = PlayerType.Innie.id
-                            } else {
-                                arr[0] = PlayerType.Outie.id
-                            }
-                            SettingStore.setValue(SettingType.PLAYER, "${arr.first()}#${arr[1]}")
-                        }
-                        arr
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // 播放器类型选择
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            PlayerType.entries.forEach { type ->
-                                AssistChip(
-                                    onClick = {
-                                        SettingStore.setValue(
-                                            SettingType.PLAYER,
-                                            "${type.id}#${playerSetting.value[1]}"
-                                        )
-                                        when (type.id) {
-                                            PlayerType.Innie.id -> SnackBar.postMsg(
-                                                "使用内置播放器",
-                                                type = SnackBar.MessageType.INFO
-                                            )
-
-                                            PlayerType.Outie.id -> {
-                                                // 检查是否选择了外部播放器但路径为空
-                                                if (playerSetting.value[1].isBlank()) {
-                                                    SnackBar.postMsg(
-                                                        "已切换到外部播放器，请配置播放器路径",
-                                                        type = SnackBar.MessageType.WARNING
-                                                    )
-                                                } else {
-                                                    SnackBar.postMsg("使用外部播放器", type = SnackBar.MessageType.INFO)
-                                                }
-                                            }
-
-                                            PlayerType.Web.id -> SnackBar.postMsg(
-                                                "使用浏览器播放器",
-                                                type = SnackBar.MessageType.INFO
-                                            )
-                                        }
-                                        vm.sync()
-                                    },
-                                    label = { Text(type.display) },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = if (playerSetting.value.first() == type.id) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.surfaceVariant
-                                        },
-                                        labelColor = if (playerSetting.value.first() == type.id) {
-                                            MaterialTheme.colorScheme.onPrimary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        }
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                            }
-                        }
-                        var isPathValid by remember { mutableStateOf(true) }
-                        var showPathWarning by remember { mutableStateOf(false) }
-                        // 播放器路径输入
-                        OutlinedTextField(
-                            value = playerSetting.value[1],
-                            onValueChange = {
-                                isPathValid = it.isNotBlank()
-                                SettingStore.setValue(SettingType.PLAYER, "${playerSetting.value.first()}#$it")
-                                SiteViewModel.viewModelScope.launch {
-                                    if (playerSetting.value.first() == PlayerType.Innie.id) {
-                                        if (File(it).exists()) {
-                                            VlcJInit.init(true)
-                                        }
-                                    }
-                                }
-                                vm.sync()
-                                SnackBar.postMsg("播放器路径更新为：$it", type = SnackBar.MessageType.INFO)
-                                // 当用户开始输入路径时，隐藏警告
-                                showPathWarning = false
-                            },
-                            label = { Text("播放器路径") },
-                            maxLines = 1,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = playerSetting.value.first() == PlayerType.Outie.id,
-                            isError = !isPathValid || showPathWarning,
-                            supportingText = {
-                                if (!isPathValid || showPathWarning) {
-                                    if (playerSetting.value.first() == PlayerType.Outie.id && playerSetting.value[1].isBlank()) {
-                                        Text("请输入外置播放器路径！", color = MaterialTheme.colorScheme.error)
-                                    } else {
-                                        Text("请输入外置播放器路径！", color = MaterialTheme.colorScheme.error)
-                                    }
-                                }
-                            }
-                        )
-
-                        // 验证路径
-                        if (playerSetting.value.first() == PlayerType.Outie.id) {
-                            Button(
-                                onClick = {
-                                    if (playerSetting.value[1].isBlank()) {
-                                        showPathWarning = true
-                                        SnackBar.postMsg("请先配置外部播放器路径！", type = SnackBar.MessageType.ERROR)
-                                    } else {
-                                        // 验证路径是否有效
-                                        val file = File(playerSetting.value[1])
-                                        if (file.exists() && file.canExecute()) {
-                                            SnackBar.postMsg("播放器路径有效", type = SnackBar.MessageType.INFO)
-                                        } else {
-                                            SnackBar.postMsg(
-                                                "播放器路径无效或不可执行",
-                                                type = SnackBar.MessageType.ERROR
-                                            )
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = playerSetting.value.first() == PlayerType.Outie.id
-                            ) {
-                                Text("验证播放器路径")
-                            }
-                        }
-                        Text(
-                            text = "播放器可配置为内部播放器、外部播放器或浏览器播放器;如果选择外部播放器,需要配置外置播放器路径才能播放视频",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-            }
-
-            item {
-                SettingCard(
-                    title = "更新检查",
-                    icon = Icons.Default.SystemUpdate
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { vm.checkForUpdate() },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !updateCheckState.isChecking,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        ) {
-                            if (updateCheckState.isChecking) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                    Text("检查中...")
-                                }
-                            } else {
-                                Text("手动检查更新")
-                            }
-                        }
-
-                        // 显示检查结果
-                        if (updateCheckState.hasUpdate && updateCheckState.latestVersion != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "发现新版本: ${updateCheckState.latestVersion}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-
-                                Button(
-                                    onClick = {
-                                        // 触发更新流程或显示更新对话框
-                                        SnackBar.postMsg(
-                                            "发现新版本 ${updateCheckState.latestVersion}，请重启应用进行更新",
-                                            type = SnackBar.MessageType.INFO
-                                        )
-
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                ) {
-                                    Text("立即更新")
-                                }
-                            }
-                        }
-
-                        if (updateCheckState.error != null) {
-                            Text(
-                                text = "检查失败: ${updateCheckState.error}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 代理设置项
-            item {
-                SettingCard(
-                    title = "代理设置",
-                    icon = Icons.Default.Security
-                ) {
-                    val proxySetting = derivedStateOf {
-                        model.value.settingList.getSetting(SettingType.PROXY)
-                            ?.value?.parseAsSettingEnable()
-                            ?: SettingEnable.default()
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Switch(
-                            checked = proxySetting.value.isEnabled,
-                            onCheckedChange = { enabled ->
-                                // 更新设置
-                                SettingStore.setValue(SettingType.PROXY, "$enabled#${proxySetting.value.value}")
-                                vm.sync()
-                                
-                                // 清除代理测试缓存，下次请求时会重新测试（使用统一的 ProxyManager）
-                                com.corner.util.net.ProxyManager.clearCache()
-                                
-                                // 如果关闭代理，立即清除OkHttpClient缓存以生效
-                                if (!enabled) {
-                                    com.corner.util.net.Http.client().dispatcher.executorService.shutdownNow()
-                                    com.github.catvod.net.OkHttp.clearClient()
-                                    SnackBar.postMsg("代理已关闭，网络连接将立即生效", type = SnackBar.MessageType.INFO)
-                                } else {
-                                    SnackBar.postMsg("代理已开启，部分功能可能需要重启后完全生效", type = SnackBar.MessageType.INFO)
-                                }
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
-
-                        OutlinedTextField(
-                            value = proxySetting.value.value,
-                            onValueChange = {
-                                SettingStore.setValue(SettingType.PROXY, "${proxySetting.value.isEnabled}#$it")
-                                vm.sync()
-                                // 清除代理测试缓存，下次请求时会重新测试（使用统一的 ProxyManager）
-                                com.corner.util.net.ProxyManager.clearCache()
-                            },
-                            label = { Text("代理地址") },
-                            placeholder = { Text("例如: http://127.0.0.1:7890") },
-                            maxLines = 1,
-                            modifier = Modifier.weight(1f),
-                            enabled = proxySetting.value.isEnabled,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        
-                        // 测试代理按钮
-                        if (proxySetting.value.isEnabled && proxySetting.value.value.isNotBlank()) {
-                            IconButton(
-                                onClick = {
-                                    testProxyConnection(proxySetting.value.value)
-                                },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "测试代理",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 爬虫搜索词设置项
-            item {
-                SettingCard(
-                    title = "爬虫搜索词设置",
-                    icon = Icons.Default.Search
-                ) {
-                    val crawlerSearchTerms = remember {
-                        mutableStateOf(
-                            model.value.settingList.getSetting(SettingType.CRAWLER_SEARCH_TERMS)?.value ?: ""
-                        )
-                    }
-
-                    OutlinedTextField(
-                        value = crawlerSearchTerms.value,
-                        onValueChange = { newValue ->
-                            crawlerSearchTerms.value = newValue
-                            SettingStore.setValue(SettingType.CRAWLER_SEARCH_TERMS, newValue)
-                            vm.sync()
-                        },
-                        label = { Text("搜索模式搜索词") },
-                        placeholder = { Text("请输入搜索词") },
-                        maxLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Text(
-                        text = "用于爬虫可用性功能的搜索模式搜索词，默认为“阿甘正传”",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-            item {
-                SettingCard(
-                    title = "DNS over HTTPS 设置",
-                    icon = Icons.Default.Security
-                ) {
-                    val dohEnabled = remember {
-                        mutableStateOf(SettingStore.getSettingItem(SettingType.DOH_ENABLED).toBoolean())
-                    }
-                    val dohServer = remember {
-                        mutableStateOf(SettingStore.getSettingItem(SettingType.DOH_SERVER))
-                    }
-                    val dohServers = Doh.defaultDoh().filter { it.name != "System" } // 过滤掉System选项
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // DoH 启用开关
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = if (dohEnabled.value) "DoH：开启" else "DoH：关闭",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Switch(
-                                checked = dohEnabled.value,
-                                onCheckedChange = { enabled ->
-                                    dohEnabled.value = enabled
-                                    SettingStore.setValue(SettingType.DOH_ENABLED, enabled.toString())
-                                    // 应用DoH设置
-                                    applyDohSetting(enabled, dohServer.value)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-
-                        // DoH 服务器选择（仅在启用时显示）
-                        if (dohEnabled.value) {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                                Text(
-                                    text = "DoH 服务器",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // 服务器选择按钮
-                                dohServers.forEach { server ->
-                                    RadioButtonRow(
-                                        text = server.name,
-                                        selected = dohServer.value == server.name,
-                                        onClick = {
-                                            dohServer.value = server.name
-                                            SettingStore.setValue(SettingType.DOH_SERVER, server.name)
-                                            // 应用DoH设置
-                                            applyDohSetting(true, server.name)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        Text(
-                            text = "DNS over HTTPS (DoH) 可以提高DNS查询的安全性和隐私性。开启后，DNS查询将通过HTTPS加密传输。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 12.dp)
-                        )
-                    }
-                }
-            }
-
-            // FPS 监控设置项
-            item {
-                SettingCard(
-                    title = "FPS 监控",
-                    icon = Icons.Default.Info
-                ) {
-                    val fpsMonitorEnabled = remember {
-                        mutableStateOf(SettingStore.getSettingItem(SettingType.FPS_MONITOR).toBoolean())
-                    }
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (fpsMonitorEnabled.value) "FPS 监控：开启" else "FPS 监控：关闭",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = "在屏幕左上角显示当前帧率和系统信息，用于性能调试",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                            Switch(
-                                checked = fpsMonitorEnabled.value,
-                                onCheckedChange = { enabled ->
-                                    fpsMonitorEnabled.value = enabled
-                                    SettingStore.setValue(SettingType.FPS_MONITOR, enabled.toString())
-                                    vm.sync()
-                                    SnackBar.postMsg(
-                                        if (enabled) "FPS 监控已开启" else "FPS 监控已关闭",
-                                        type = SnackBar.MessageType.INFO
-                                    )
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 重置按钮
-            item {
-                var showConfirmDialog by remember { mutableStateOf(false) }
-
-                Button(
-                    onClick = {
-                        showConfirmDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("重置所有设置", style = MaterialTheme.typography.labelLarge)
-                }
-
-                if (showConfirmDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showConfirmDialog = false },
-                        title = { Text("确认重置") },
-                        text = { Text("您确定要重置所有设置吗？此操作无法撤销。") },
-                        confirmButton = {
-                            TextButton(
-                                onClick = {
-                                    SettingStore.reset()
-                                    vm.sync()
-                                    GlobalAppState.isDarkTheme.value =
-                                        SettingStore.getSettingItem(SettingType.THEME) == "dark"
-                                    SnackBar.postMsg("重置设置,重启生效", type = SnackBar.MessageType.INFO)
-                                    showConfirmDialog = false
-                                }
-                            ) {
-                                Text("确认")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(
-                                onClick = { showConfirmDialog = false }
-                            ) {
-                                Text("取消")
-                            }
-                        }
-                    )
-                }
-            }
-
-        }
-        // 关于按钮 - 悬浮在右下角
-        FloatingActionButton(
-            onClick = { showAboutDialog = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-        ) {
-            Icon(Icons.Default.Info, "关于")
         }
     }
+
     if (showAboutDialog) {
         AboutDialog(
             modifier = Modifier
-                .fillMaxWidth(0.5f)  // 改为宽度比例
-                .fillMaxHeight(0.8f), // 改为高度比例
+                .fillMaxWidth(0.5f)
+                .fillMaxHeight(0.8f),
             showDialog = showAboutDialog,
             onDismiss = { showAboutDialog = false },
-            contentPadding = PaddingValues(16.dp)  // 可调整内边距
+            contentPadding = PaddingValues(16.dp)
         )
     }
-    // 显示重启提示弹窗
+
     if (showRestartDialog) {
         SnackBar.postMsg("重启生效", type = SnackBar.MessageType.INFO)
         showRestartDialog = false
+    }
+}
+
+@Composable
+fun SettingsNavigationRail(
+    selectedCategory: SettingsCategory,
+    onCategorySelected: (SettingsCategory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SettingsCategory.entries.forEach { category ->
+            NavigationRailItem(
+                selected = selectedCategory == category,
+                onClick = { onCategorySelected(category) },
+                icon = {
+                    Icon(
+                        imageVector = category.icon,
+                        contentDescription = category.title
+                    )
+                },
+                label = {
+                    Text(
+                        text = category.title,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                alwaysShowLabel = true,
+                colors = NavigationRailItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun GeneralSettingsContent(
+    vm: SettingViewModel,
+    model: State<com.corner.ui.nav.data.SettingScreenState>,
+    isDarkTheme: Boolean,
+    adFilterChecked: Boolean,
+    onAdFilterChange: (Boolean) -> Unit,
+    filterConfig: MutableState<M3U8FilterConfig>,
+    showRestartDialog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SettingCard(
+                title = "主题设置",
+                icon = Icons.Default.Palette
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (isDarkTheme) "当前主题：暗色模式" else "当前主题：亮色模式",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = {
+                            GlobalAppState.isDarkTheme.value = it
+                            try {
+                                SettingStore.setValue(SettingType.THEME, if (it) "dark" else "light")
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "广告过滤设置",
+                icon = Icons.Default.Block
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (adFilterChecked) "广告过滤：开启" else "广告过滤：关闭",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = adFilterChecked,
+                        onCheckedChange = onAdFilterChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+
+                if (adFilterChecked) {
+                    var tsNameLenExtend: Int by remember { mutableStateOf(filterConfig.value.tsNameLenExtend) }
+                    var theExtinfBenchmarkN: Int by remember { mutableStateOf(filterConfig.value.theExtinfBenchmarkN) }
+                    var violentFilterModeFlag by remember { mutableStateOf(filterConfig.value.violentFilterModeFlag) }
+
+                    LaunchedEffect(filterConfig.value.tsNameLenExtend) {
+                        tsNameLenExtend = filterConfig.value.tsNameLenExtend
+                    }
+                    LaunchedEffect(filterConfig.value.theExtinfBenchmarkN) {
+                        theExtinfBenchmarkN = filterConfig.value.theExtinfBenchmarkN
+                    }
+                    LaunchedEffect(filterConfig.value.violentFilterModeFlag) {
+                        violentFilterModeFlag = filterConfig.value.violentFilterModeFlag
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("TS 前缀长度容错值")
+                            Text(
+                                text = "$tsNameLenExtend (默认: 1)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Slider(
+                            value = tsNameLenExtend.toFloat(),
+                            onValueChange = { newValue ->
+                                val newInt = newValue.roundToInt()
+                                val clampedValue = newInt.coerceIn(0, 5)
+                                tsNameLenExtend = clampedValue
+                                filterConfig.value = filterConfig.value.copy(tsNameLenExtend = clampedValue)
+                                SettingStore.setM3U8FilterConfig(filterConfig.value)
+                                showRestartDialog()
+                            },
+                            valueRange = 0f..5f,
+                            steps = 4
+                        )
+                        Text(
+                            text = "用于匹配TS文件名的前缀长度容错。当TS文件名与预期模式不完全匹配时，允许的前缀长度偏差值。设为0表示严格匹配，增大可提高容错能力。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("EXTINF 基准值")
+                            Text(
+                                text = "${theExtinfBenchmarkN.toInt()} (默认: 5)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Slider(
+                            value = theExtinfBenchmarkN.toFloat(),
+                            onValueChange = { newValue ->
+                                val newInt = newValue.roundToInt()
+                                val clampedValue = newInt.coerceIn(1, 10)
+                                theExtinfBenchmarkN = newInt
+                                filterConfig.value = filterConfig.value.copy(theExtinfBenchmarkN = clampedValue)
+                                SettingStore.setM3U8FilterConfig(filterConfig.value)
+                                showRestartDialog()
+                            },
+                            valueRange = 1f..10f,
+                            steps = 8
+                        )
+                        Text(
+                            text = "相同描述行阈值：用于判断是否进入广告段。若连续相同的 #EXTINF 行数超过此值，将触发广告过滤逻辑。默认值通常为 3~5。若正常内容被误判为广告，可调大；若广告漏过，可调小。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("暴力拆解模式")
+                            Text(
+                                text = if (violentFilterModeFlag) "开启" else "关闭",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = violentFilterModeFlag,
+                            onCheckedChange = {
+                                violentFilterModeFlag = it
+                                filterConfig.value.violentFilterModeFlag = it
+                                SettingStore.setM3U8FilterConfig(filterConfig.value)
+                                showRestartDialog()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                        Text(
+                            text = "暴力过滤模式：开启后将直接移除所有 #EXT-X-DISCONTINUITY 行（常用于广告插入点）。适用于复杂广告场景，但可能导致正常内容丢失（如节目切换）。仅在普通模式无法过滤广告时启用。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            var showConfirmDialog by remember { mutableStateOf(false) }
+
+            Button(
+                onClick = { showConfirmDialog = true },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("重置所有设置", style = MaterialTheme.typography.labelLarge)
+            }
+
+            if (showConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showConfirmDialog = false },
+                    title = { Text("确认重置") },
+                    text = { Text("您确定要重置所有设置吗？此操作无法撤销。") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                SettingStore.reset()
+                                vm.sync()
+                                GlobalAppState.isDarkTheme.value =
+                                    SettingStore.getSettingItem(SettingType.THEME) == "dark"
+                                SnackBar.postMsg("重置设置,重启生效", type = SnackBar.MessageType.INFO)
+                                showConfirmDialog = false
+                            }
+                        ) {
+                            Text("确认")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showConfirmDialog = false }
+                        ) {
+                            Text("取消")
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VodSettingsContent(
+    vm: SettingViewModel,
+    model: State<com.corner.ui.nav.data.SettingScreenState>,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SettingCard(title = "点播源配置", icon = Icons.Default.LiveTv) {
+                val focusRequester = remember { FocusRequester() }
+                val isExpand = remember { mutableStateOf(false) }
+                val setting = derivedStateOf { model.value.settingList.getSetting(SettingType.VOD) }
+                val vodConfigList = derivedStateOf { model.value.dbConfigList }
+
+                var textValue by remember { mutableStateOf(setting.value?.value ?: "") }
+
+                LaunchedEffect(setting.value?.value) {
+                    setting.value?.value?.let {
+                        if (textValue != it) textValue = it
+                    }
+                }
+
+                LaunchedEffect(isExpand.value) {
+                    if (isExpand.value) {
+                        vm.getConfigAll()
+                        focusRequester.requestFocus()
+                        delay(100)
+                    }
+                }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Box(Modifier.fillMaxSize()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = textValue,
+                                onValueChange = { newValue ->
+                                    textValue = newValue
+                                    SettingStore.setValue(SettingType.VOD, newValue)
+                                    vm.sync()
+                                },
+                                label = { Text("输入点播源地址") },
+                                singleLine = true,
+                                modifier = Modifier
+                                    .focusRequester(focusRequester)
+                                    .weight(1f)
+                                    .onFocusEvent { isExpand.value = it.isFocused },
+                                keyboardOptions = KeyboardOptions(
+                                    imeAction = ImeAction.Done,
+                                    keyboardType = KeyboardType.Uri
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                trailingIcon = {
+                                    Row {
+                                        if (textValue.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = {
+                                                    textValue = ""
+                                                    SettingStore.setValue(SettingType.VOD, "")
+                                                    vm.sync()
+                                                }
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    "清空",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+                                                try {
+                                                    val text = clipboard.getData(DataFlavor.stringFlavor) as? String
+                                                    text?.let {
+                                                        textValue = it
+                                                        SettingStore.setValue(SettingType.VOD, it)
+                                                        vm.sync()
+                                                    }
+                                                } catch (e: Exception) {
+                                                    log.error("粘贴失败: ${e.message}")
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.ContentPaste,
+                                                "粘贴",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+
+                            Button(
+                                onClick = { setConfig(textValue) },
+                                modifier = Modifier.height(60.dp).padding(top = 8.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("确定")
+                            }
+
+                            DropdownMenu(
+                                isExpand.value,
+                                { isExpand.value = false },
+                                modifier = Modifier.fillMaxWidth(0.8f),
+                                properties = PopupProperties(focusable = false)
+                            ) {
+                                vodConfigList.value.forEach {
+                                    DropdownMenuItem(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        text = { Text(it.url ?: "") },
+                                        onClick = {
+                                            setConfig(it.url)
+                                            isExpand.value = false
+                                        },
+                                        trailingIcon = {
+                                            IconButton(onClick = {
+                                                vm.deleteHistoryById(it)
+                                            }) {
+                                                Icon(Icons.Default.Close, "delete the config")
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "需要配置点播源才能获取到视频内容\n" +
+                                " \n" +
+                                "格式：\n" +
+                                "file://C:\\\\json\\\\config.json \n" +
+                                "或\n" +
+                                "http://example.com/config.json \n",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1190,6 +800,640 @@ fun RadioButtonRow(
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(start = 8.dp)
         )
+    }
+}
+
+@Composable
+fun PlayerSettingsContent(
+    vm: SettingViewModel,
+    model: State<com.corner.ui.nav.data.SettingScreenState>,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SettingCard(
+                title = "播放器设置",
+                icon = Icons.Default.PlayCircle
+            ) {
+                val playerSetting = derivedStateOf {
+                    val arr = model.value.settingList.getSetting(SettingType.PLAYER)
+                        ?.value?.getPlayerSetting()?.toMutableList()
+                        ?: mutableListOf(PlayerType.Innie.id, "")
+
+                    if (listOf("true", "false").contains(arr[0])) {
+                        if (arr[0].toBoolean()) {
+                            arr[0] = PlayerType.Innie.id
+                        } else {
+                            arr[0] = PlayerType.Outie.id
+                        }
+                        SettingStore.setValue(SettingType.PLAYER, "${arr.first()}#${arr[1]}")
+                    }
+                    arr
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PlayerType.entries.forEach { type ->
+                            AssistChip(
+                                onClick = {
+                                    SettingStore.setValue(
+                                        SettingType.PLAYER,
+                                        "${type.id}#${playerSetting.value[1]}"
+                                    )
+                                    when (type.id) {
+                                        PlayerType.Innie.id -> SnackBar.postMsg(
+                                            "使用内置播放器",
+                                            type = SnackBar.MessageType.INFO
+                                        )
+
+                                        PlayerType.Outie.id -> {
+                                            if (playerSetting.value[1].isBlank()) {
+                                                SnackBar.postMsg(
+                                                    "已切换到外部播放器，请配置播放器路径",
+                                                    type = SnackBar.MessageType.WARNING
+                                                )
+                                            } else {
+                                                SnackBar.postMsg("使用外部播放器", type = SnackBar.MessageType.INFO)
+                                            }
+                                        }
+
+                                        PlayerType.Web.id -> SnackBar.postMsg(
+                                            "使用浏览器播放器",
+                                            type = SnackBar.MessageType.INFO
+                                        )
+                                    }
+                                    vm.sync()
+                                },
+                                label = { Text(type.display) },
+                                colors = AssistChipDefaults.assistChipColors(
+                                    containerColor = if (playerSetting.value.first() == type.id) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    labelColor = if (playerSetting.value.first() == type.id) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                ),
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
+
+                    var isPathValid by remember { mutableStateOf(true) }
+                    var showPathWarning by remember { mutableStateOf(false) }
+
+                    OutlinedTextField(
+                        value = playerSetting.value[1],
+                        onValueChange = {
+                            isPathValid = it.isNotBlank()
+                            SettingStore.setValue(SettingType.PLAYER, "${playerSetting.value.first()}#$it")
+                            SiteViewModel.viewModelScope.launch {
+                                if (playerSetting.value.first() == PlayerType.Innie.id) {
+                                    if (File(it).exists()) {
+                                        VlcJInit.init(true)
+                                    }
+                                }
+                            }
+                            vm.sync()
+                            SnackBar.postMsg("播放器路径更新为：$it", type = SnackBar.MessageType.INFO)
+                            showPathWarning = false
+                        },
+                        label = { Text("播放器路径") },
+                        maxLines = 1,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = playerSetting.value.first() == PlayerType.Outie.id,
+                        isError = !isPathValid || showPathWarning,
+                        supportingText = {
+                            if (!isPathValid || showPathWarning) {
+                                Text("请输入外置播放器路径！", color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    )
+
+                    if (playerSetting.value.first() == PlayerType.Outie.id) {
+                        Button(
+                            onClick = {
+                                if (playerSetting.value[1].isBlank()) {
+                                    showPathWarning = true
+                                    SnackBar.postMsg("请先配置外部播放器路径！", type = SnackBar.MessageType.ERROR)
+                                } else {
+                                    val file = File(playerSetting.value[1])
+                                    if (file.exists() && file.canExecute()) {
+                                        SnackBar.postMsg("播放器路径有效", type = SnackBar.MessageType.INFO)
+                                    } else {
+                                        SnackBar.postMsg(
+                                            "播放器路径无效或不可执行",
+                                            type = SnackBar.MessageType.ERROR
+                                        )
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = playerSetting.value.first() == PlayerType.Outie.id
+                        ) {
+                            Text("验证播放器路径")
+                        }
+                    }
+
+                    Text(
+                        text = "播放器可配置为内部播放器、外部播放器或浏览器播放器;如果选择外部播放器,需要配置外置播放器路径才能播放视频",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "迷你进度条",
+                icon = Icons.Default.Info
+            ) {
+                val miniProgressBarEnabled = remember {
+                    mutableStateOf(SettingStore.getSettingItem(SettingType.MINI_PROGRESS_BAR).toBoolean())
+                }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (miniProgressBarEnabled.value) "迷你进度条：开启" else "迷你进度条：关闭",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "在播放页面底部常驻显示迷你进度条，方便随时查看播放进度",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        Switch(
+                            checked = miniProgressBarEnabled.value,
+                            onCheckedChange = { enabled ->
+                                miniProgressBarEnabled.value = enabled
+                                SettingStore.setValue(SettingType.MINI_PROGRESS_BAR, enabled.toString())
+                                vm.sync()
+                                SnackBar.postMsg(
+                                    if (enabled) "迷你进度条已开启" else "迷你进度条已关闭",
+                                    type = SnackBar.MessageType.INFO
+                                )
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NetworkSettingsContent(
+    vm: SettingViewModel,
+    model: State<com.corner.ui.nav.data.SettingScreenState>,
+    updateCheckState: com.corner.ui.nav.vm.UpdateCheckState,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SettingCard(
+                title = "更新检查",
+                icon = Icons.Default.SystemUpdate
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { vm.checkForUpdate() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !updateCheckState.isChecking,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        if (updateCheckState.isChecking) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Text("检查中...")
+                            }
+                        } else {
+                            Text("手动检查更新")
+                        }
+                    }
+
+                    if (updateCheckState.hasUpdate && updateCheckState.latestVersion != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "发现新版本: ${updateCheckState.latestVersion}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Button(
+                                onClick = {
+                                    SnackBar.postMsg(
+                                        "发现新版本 ${updateCheckState.latestVersion}，请重启应用进行更新",
+                                        type = SnackBar.MessageType.INFO
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("立即更新")
+                            }
+                        }
+                    }
+
+                    if (updateCheckState.error != null) {
+                        Text(
+                            text = "检查失败: ${updateCheckState.error}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "代理设置",
+                icon = Icons.Default.Security
+            ) {
+                val proxySetting = derivedStateOf {
+                    model.value.settingList.getSetting(SettingType.PROXY)
+                        ?.value?.parseAsSettingEnable()
+                        ?: SettingEnable.default()
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Switch(
+                        checked = proxySetting.value.isEnabled,
+                        onCheckedChange = { enabled ->
+                            SettingStore.setValue(SettingType.PROXY, "$enabled#${proxySetting.value.value}")
+                            vm.sync()
+                            com.corner.util.net.ProxyManager.clearCache()
+
+                            if (!enabled) {
+                                com.corner.util.net.Http.client().dispatcher.executorService.shutdownNow()
+                                com.github.catvod.net.OkHttp.clearClient()
+                                SnackBar.postMsg("代理已关闭，网络连接将立即生效", type = SnackBar.MessageType.INFO)
+                            } else {
+                                SnackBar.postMsg(
+                                    "代理已开启，部分功能可能需要重启后完全生效",
+                                    type = SnackBar.MessageType.INFO
+                                )
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = proxySetting.value.value,
+                        onValueChange = {
+                            SettingStore.setValue(SettingType.PROXY, "${proxySetting.value.isEnabled}#$it")
+                            vm.sync()
+                            com.corner.util.net.ProxyManager.clearCache()
+                        },
+                        label = { Text("代理地址") },
+                        placeholder = { Text("例如: http://127.0.0.1:7890") },
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f),
+                        enabled = proxySetting.value.isEnabled,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    if (proxySetting.value.isEnabled && proxySetting.value.value.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                testProxyConnection(proxySetting.value.value)
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "测试代理",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "DNS over HTTPS 设置",
+                icon = Icons.Default.Security
+            ) {
+                val dohEnabled = remember {
+                    mutableStateOf(SettingStore.getSettingItem(SettingType.DOH_ENABLED).toBoolean())
+                }
+                val dohServer = remember {
+                    mutableStateOf(SettingStore.getSettingItem(SettingType.DOH_SERVER))
+                }
+                val dohServers = Doh.defaultDoh().filter { it.name != "System" }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (dohEnabled.value) "DoH：开启" else "DoH：关闭",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Switch(
+                            checked = dohEnabled.value,
+                            onCheckedChange = { enabled ->
+                                dohEnabled.value = enabled
+                                SettingStore.setValue(SettingType.DOH_ENABLED, enabled.toString())
+                                applyDohSetting(enabled, dohServer.value)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+
+                    if (dohEnabled.value) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                            Text(
+                                text = "DoH 服务器",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            dohServers.forEach { server ->
+                                RadioButtonRow(
+                                    text = server.name,
+                                    selected = dohServer.value == server.name,
+                                    onClick = {
+                                        dohServer.value = server.name
+                                        SettingStore.setValue(SettingType.DOH_SERVER, server.name)
+                                        applyDohSetting(true, server.name)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "DNS over HTTPS (DoH) 可以提高DNS查询的安全性和隐私性。开启后，DNS查询将通过HTTPS加密传输。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdvancedSettingsContent(
+    vm: SettingViewModel,
+    model: State<com.corner.ui.nav.data.SettingScreenState>,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            SettingCard(
+                title = "日志级别",
+                icon = Icons.AutoMirrored.Filled.ListAlt
+            ) {
+                val current = derivedStateOf {
+                    model.value.settingList.getSetting(SettingType.LOG)?.value ?: logLevel[0]
+                }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        logLevel.forEach { level ->
+                            FilterChip(
+                                selected = level == current.value,
+                                leadingIcon = if (current.value == level) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Filled.Done,
+                                            contentDescription = "Done icon",
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                            tint = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                                onClick = {
+                                    SettingStore.setValue(SettingType.LOG, level)
+                                    vm.sync()
+                                    SnackBar.postMsg("重启生效", type = SnackBar.MessageType.INFO)
+                                },
+                                label = { Text(level) },
+                                modifier = Modifier.weight(1f),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+                    }
+                    Text(
+                        text = "日志级别用于记录应用运行时的信息和错误,默认级别为DEBUG;使用DEBUG级别可能会导致日志文件变大",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "爬虫搜索词设置",
+                icon = Icons.Default.Search
+            ) {
+                val crawlerSearchTerms = remember {
+                    mutableStateOf(
+                        model.value.settingList.getSetting(SettingType.CRAWLER_SEARCH_TERMS)?.value ?: ""
+                    )
+                }
+
+                OutlinedTextField(
+                    value = crawlerSearchTerms.value,
+                    onValueChange = { newValue ->
+                        crawlerSearchTerms.value = newValue
+                        SettingStore.setValue(SettingType.CRAWLER_SEARCH_TERMS, newValue)
+                        vm.sync()
+                    },
+                    label = { Text("搜索模式搜索词") },
+                    placeholder = { Text("请输入搜索词") },
+                    maxLines = 3,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Text(
+                    text = "用于爬虫可用性功能的搜索模式搜索词，默认为\"阿甘正传\"",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+
+        item {
+            SettingCard(
+                title = "FPS 监控",
+                icon = Icons.Default.Info
+            ) {
+                val fpsMonitorEnabled = remember {
+                    mutableStateOf(SettingStore.getSettingItem(SettingType.FPS_MONITOR).toBoolean())
+                }
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (fpsMonitorEnabled.value) "FPS 监控：开启" else "FPS 监控：关闭",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "在屏幕左上角显示当前帧率和系统信息，用于性能调试",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        Switch(
+                            checked = fpsMonitorEnabled.value,
+                            onCheckedChange = { enabled ->
+                                fpsMonitorEnabled.value = enabled
+                                SettingStore.setValue(SettingType.FPS_MONITOR, enabled.toString())
+                                vm.sync()
+                                SnackBar.postMsg(
+                                    if (enabled) "FPS 监控已开启" else "FPS 监控已关闭",
+                                    type = SnackBar.MessageType.INFO
+                                )
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AboutSettingsContent(
+    onShowAbout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            Text(
+                text = "关于 LumenTV",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Text(
+                text = "查看应用版本、开发团队和开源协议等信息",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Button(
+                onClick = onShowAbout,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("查看详情")
+            }
+        }
     }
 }
 
@@ -1340,13 +1584,13 @@ private fun testProxyConnection(proxyUrl: String) {
             val uri = java.net.URI.create(proxyUrl)
             val address = java.net.InetSocketAddress(uri.host, uri.port)
             val socket = java.net.Socket()
-            
+
             SnackBar.postMsg("正在测试代理连接...", type = SnackBar.MessageType.INFO)
-            
+
             // 设置超时时间为3秒
             socket.connect(address, 3000)
             socket.close()
-            
+
             SnackBar.postMsg(
                 "代理连接测试成功！\n地址: $proxyUrl",
                 type = SnackBar.MessageType.SUCCESS
@@ -1615,14 +1859,6 @@ fun AboutSection(
     }
 }
 
-//@Preview
-//@Composable
-//fun previewAboutDialog() {
-//    AppTheme {
-//        AboutDialog(Modifier, true) {}
-//    }
-//}
-
 fun openBrowser(url: String) {
     if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
         Desktop.getDesktop().browse(URI(url))
@@ -1647,31 +1883,3 @@ fun resetDohSetting() {
     // 通过反射或添加方法来重置DoH设置
     Http.resetDoh()
 }
-
-//@Composable
-//fun AboutItem(title: String, modifier: Modifier, content: @Composable (Modifier) -> Unit) {
-//    Row(modifier.padding(vertical = 5.dp, horizontal = 15.dp)) {
-//        Text(
-//            title,
-//            style = MaterialTheme.typography.titleMedium.copy(
-//                color = MaterialTheme.colorScheme.onSurface,
-//                fontWeight = FontWeight.Bold
-//            ),
-//            modifier = Modifier.align(Alignment.CenterVertically).padding(end = 5.dp)
-//        )
-//        content(Modifier.align(Alignment.CenterVertically))
-//    }
-//}
-
-//@Composable
-//@Preview
-//fun SettingItem() {
-//    AppTheme(useDarkTheme = false) {
-//        SettingItem(
-//            Modifier,
-//            "点播", "PeopleInSpaceTheme"
-//        ) {
-//
-//        }
-//    }
-//}
