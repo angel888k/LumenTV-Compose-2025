@@ -10,6 +10,7 @@ ksp = "2.1.10-1.0.29"
 jupnp = "3.0.3"
 androidx-navigation = "2.7.0-alpha06"
 image-loader = '1.10.0'
+twelvemonkeys = '3.12.0'
 
 # HTTP & Network
 ktor = "3.1.2"
@@ -61,6 +62,17 @@ androidx-navigation-compose = { module = "org.jetbrains.androidx.navigation:navi
 
 # Image Loading
 image-loader = {module = "io.github.qdsfdhvh:image-loader", version.ref = "image-loader"}
+image-loader-extension-imageio = {module = "io.github.qdsfdhvh:image-loader-extension-imageio", version.ref = "image-loader"}
+
+# TwelveMonkeys ImageIO Plugins for WebP support (Java 8+)
+twelvemonkeys-webp = {module = "com.twelvemonkeys.imageio:imageio-webp", version.ref = "twelvemonkeys"}
+
+# Note: AVIF/HEIF support requires system-level libheif installation
+# To enable AVIF/HEIF, uncomment the following lines and install libheif:
+# - Windows: Install via vcpkg or MSYS2
+# - macOS: brew install libheif
+# - Linux: sudo apt install libheif-dev
+# nightmonkeys-heif = {module = "com.github.gotson.nightmonkeys:imageio-heif", version.ref = "nightmonkeys"}
 
 # Ktor Server
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

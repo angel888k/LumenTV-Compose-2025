@@ -18,7 +18,7 @@ fun generateImageLoader(): ImageLoader {
         components {
             add(KtorHeaderUrlFetcher.CustomUrlFetcher)
             setupBase64Components()
-            setupJvmComponents()
+            setupDefaultComponents()
             setupSvgComponents()
             setupSkiaComponents(4)
             setupCommonComponents(defaultFileSystem)

@@ -20,6 +20,9 @@ dependencies {
 
 kotlin {
     jvm("desktop")
+    
+    // Configure Java toolchain (Java 8+ required, Java 17+ recommended)
+    jvmToolchain(17)
 
     sourceSets {
         commonMain {
@@ -112,6 +115,14 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 // Player
                 implementation(libs.vlcj)
+                // ImageIO Decoder for WebP support
+                implementation(libs.image.loader.extension.imageio)
+                // TwelveMonkeys ImageIO plugin for WebP support (Java 8+)
+                implementation(libs.twelvemonkeys.webp)
+                // Note: AVIF/HEIF support is disabled by default
+                // Requires system-level libheif installation
+                // Uncomment the following line after installing libheif:
+                // implementation(libs.nightmonkeys.heif)
             }
         }
     }
@@ -172,6 +183,9 @@ compose.desktop {
 
         jvmArgs("-Dfile.encoding=UTF-8")
         jvmArgs("-Dsun.net.http.allowRestrictedHeaders=true")
+        // Note: --enable-native-access is only needed for NightMonkeys (AVIF/HEIF support)
+        // Uncomment if you enable AVIF/HEIF support
+        // jvmArgs("--enable-native-access=ALL-UNNAMED")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
