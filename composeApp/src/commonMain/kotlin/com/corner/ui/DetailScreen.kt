@@ -47,10 +47,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.WindowScope
-import com.corner.bean.SettingStore
-import com.corner.bean.SettingType
-import com.corner.bean.enums.PlayerType
-import com.corner.bean.getPlayerSetting
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
+import com.corner.service.player.PlayerType
+import com.corner.util.settings.getPlayerSetting
 import com.corner.catvodcore.bean.Vod
 import com.corner.catvodcore.bean.Vod.Companion.isEmpty
 import com.corner.catvodcore.bean.Episode
@@ -66,7 +66,7 @@ import com.corner.ui.nav.vm.DetailViewModel
 import com.corner.ui.scene.*
 import com.corner.ui.video.QuickSearchItem
 import com.corner.util.play.BrowserUtils
-import com.corner.util.Constants
+import com.corner.util.core.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1042,14 +1042,14 @@ fun EpisodeBatchSelector(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 8.dp)
             ) {
-                items((0 until epSize step Constants.EpSize).toList()) { i ->
+                items((0 until epSize step Constants.EP_SIZE).toList()) { i ->
                     RatioBtn(
-                        selected = currentTabIndex == (i / Constants.EpSize),
+                        selected = currentTabIndex == (i / Constants.EP_SIZE),
                         onClick = { onBatchClick(i) },
                         text = buildString {
                             append(i + 1)
                             append("-")
-                            append(minOf(i + Constants.EpSize, epSize))
+                            append(minOf(i + Constants.EP_SIZE, epSize))
                         },
                         modifier = Modifier.height(32.dp)
                     )

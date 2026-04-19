@@ -1,7 +1,7 @@
-package com.corner.bean
+package com.corner.util.settings
 
 import org.apache.logging.log4j.Level
-import com.corner.bean.enums.PlayerType
+import com.corner.service.player.PlayerType
 import com.corner.util.json.Jsons
 import com.corner.util.io.Paths
 import com.corner.util.m3u8.M3U8FilterConfig
@@ -166,13 +166,21 @@ object SettingStore {
         // 初始化设置文件
         val file = Paths.setting()
         if (file.exists() && settingFile.list.isEmpty()) {
-            settingFile = Jsons.decodeFromString<SettingFile>(Files.readString(file))
-            if (settingFile.list.size != defaultList.size) {
-                defaultList.forEach { setting ->
-                    if (settingFile.list.find { setting.id == it.id } == null) {
-                        settingFile.list.add(setting)
+            try {
+                settingFile = Jsons.decodeFromString<SettingFile>(Files.readString(file))
+                if (settingFile.list.size != defaultList.size) {
+                    defaultList.forEach { setting ->
+                        if (settingFile.list.find { setting.id == it.id } == null) {
+                            settingFile.list.add(setting)
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                log.warn("配置文件解析失败，将重置为默认值: ${e.message}")
+                settingFile = SettingFile(mutableListOf(), mutableMapOf())
+                settingFile.list.addAll(defaultList)
+                Files.write(file, Jsons.encodeToString(settingFile).toByteArray())
+                return
             }
         }
         // 初始化缓存

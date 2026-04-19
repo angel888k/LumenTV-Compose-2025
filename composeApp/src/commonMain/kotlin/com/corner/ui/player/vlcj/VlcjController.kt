@@ -1,7 +1,7 @@
 package com.corner.ui.player.vlcj
 
-import com.corner.bean.PlayerStateCache
-import com.corner.bean.SettingStore
+import com.corner.util.settings.PlayerStateCache
+import com.corner.util.settings.SettingStore
 import com.corner.catvodcore.bean.Vod
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.database.entity.History
@@ -13,7 +13,7 @@ import com.corner.ui.player.PlayerController
 import com.corner.ui.player.PlayerLifecycleManager
 import com.corner.ui.player.PlayerState
 import com.corner.ui.scene.SnackBar
-import com.corner.util.catch
+import com.corner.util.core.catch
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

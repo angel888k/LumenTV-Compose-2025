@@ -33,9 +33,10 @@ import com.corner.ui.nav.data.DialogState
 import com.corner.ui.nav.data.DialogState.changeDialogState
 import com.corner.ui.nav.data.ViewModelState
 import com.corner.ui.scene.SnackBar
-import com.corner.util.Constants
+import com.corner.util.core.Constants
 import com.corner.util.m3u8.M3U8AdFilterInterceptor
 import com.corner.util.m3u8.M3U8Cache
+import com.corner.util.net.createDefaultOkHttpClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import okhttp3.Request
@@ -339,7 +340,7 @@ object SiteViewModel {
             val interceptor = M3U8AdFilterInterceptor.Interceptor()
 
             // 创建OkHttpClient并添加拦截器，使用统一的代理配置
-            val client = com.corner.util.network.createDefaultOkHttpClient()
+            val client = createDefaultOkHttpClient()
                 .newBuilder()
                 .addInterceptor(interceptor)
                 .build()
@@ -459,7 +460,7 @@ object SiteViewModel {
      */
     private fun downloadAndStoreKey(keyUrl: String): String {
         // 使用带代理配置的HTTP客户端
-        val client = com.corner.util.network.createDefaultOkHttpClient()
+        val client = createDefaultOkHttpClient()
         val request = Request.Builder().url(keyUrl).build()
 
         val keyData = client.newCall(request).execute().use { response ->

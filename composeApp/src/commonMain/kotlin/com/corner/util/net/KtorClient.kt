@@ -1,4 +1,4 @@
-package com.corner.util.network
+package com.corner.util.net
 
 /**
  *  Ktor Client Http客户端
@@ -9,7 +9,6 @@ import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import okhttp3.Dispatcher
-import org.slf4j.LoggerFactory
 import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import com.corner.util.net.interceptor.Interceptors.deflateInterceptor
@@ -43,10 +42,10 @@ class KtorClient {
                     
                     // SSL配置
                     sslSocketFactory(
-                        com.corner.util.net.Http.getSSLSocketFactory(),
-                        com.corner.util.net.Http.getX509TrustManager()!!
+                        Http.getSSLSocketFactory(),
+                        Http.getX509TrustManager()!!
                     )
-                    hostnameVerifier(com.corner.util.net.Http.getHostnameVerifier())
+                    hostnameVerifier(Http.getHostnameVerifier())
                     
                     // 拦截器
                     addInterceptor(deflateInterceptor)
@@ -68,14 +67,14 @@ class KtorClient {
          * 获取代理配置（委托给全局 ProxyManager）
          */
         fun getProxy(): Proxy {
-            return com.corner.util.net.ProxyManager.getProxy()
+            return ProxyManager.getProxy()
         }
         
         /**
          * 清除代理测试缓存（当用户修改代理配置时调用）
          */
         fun clearProxyCache() {
-            com.corner.util.net.ProxyManager.clearCache()
+            ProxyManager.clearCache()
         }
     }
 }

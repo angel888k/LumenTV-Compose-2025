@@ -1,5 +1,6 @@
 package com.corner.util.update
 
+import com.corner.util.net.KtorClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -26,7 +27,7 @@ class UpdateDownloader {
         fun downloadUpdate(
             url: String,
             destination: File,
-            client: HttpClient = com.corner.util.network.KtorClient.client
+            client: HttpClient = KtorClient.client
         ): Flow<DownloadProgress> = flow {
             emit(DownloadProgress.Starting)
 
@@ -107,7 +108,7 @@ class UpdateDownloader {
         suspend fun downloadUpdateSync(
             url: String,
             destination: File,
-            client: HttpClient = com.corner.util.network.KtorClient.client
+            client: HttpClient = KtorClient.client
         ): Result<File> = withContext(Dispatchers.IO) {
             try {
                 val response: HttpResponse = client.get(url)

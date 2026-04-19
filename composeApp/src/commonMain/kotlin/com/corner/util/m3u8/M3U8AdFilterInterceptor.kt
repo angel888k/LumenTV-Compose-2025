@@ -1,6 +1,6 @@
 package com.corner.util.m3u8
 
-import com.corner.bean.SettingStore
+import com.corner.util.settings.SettingStore
 import com.corner.ui.scene.SnackBar
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody

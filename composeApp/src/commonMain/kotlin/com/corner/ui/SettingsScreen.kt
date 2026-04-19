@@ -70,8 +70,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.WindowScope
-import com.corner.bean.*
-import com.corner.bean.enums.PlayerType
+import com.corner.service.player.PlayerType
 import com.corner.catvodcore.config.ApiConfig
 import com.corner.catvodcore.enum.ConfigType
 import com.corner.catvodcore.viewmodel.SiteViewModel
@@ -99,6 +98,11 @@ import java.net.URI
 import androidx.compose.runtime.collectAsState
 import com.corner.util.net.Http
 import com.corner.catvodcore.viewmodel.GlobalAppState
+import com.corner.util.settings.SettingEnable
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
+import com.corner.util.settings.getPlayerSetting
+import com.corner.util.settings.parseAsSettingEnable
 import com.corner.util.m3u8.M3U8FilterConfig
 import com.github.catvod.bean.Doh
 import lumentv_compose.composeapp.generated.resources.LumenTV_icon_svg

@@ -40,9 +40,9 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
-import com.corner.bean.PlayerStateCache
-import com.corner.bean.SettingStore
-import com.corner.bean.SettingType
+import com.corner.util.settings.PlayerStateCache
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
 import com.corner.util.net.Utils
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.ui.nav.vm.DetailViewModel

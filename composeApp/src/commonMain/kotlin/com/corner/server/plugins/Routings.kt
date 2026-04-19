@@ -4,7 +4,7 @@ import cn.hutool.core.io.file.FileNameUtil
 import com.corner.catvodcore.viewmodel.GlobalAppState.hideProgress
 import com.corner.catvodcore.viewmodel.GlobalAppState.showProgress
 import com.corner.server.logic.proxy
-import com.corner.util.network.createDefaultOkHttpClient
+import com.corner.util.net.createDefaultOkHttpClient
 import com.corner.ui.scene.SnackBar
 import com.corner.util.m3u8.M3U8Cache
 import com.corner.util.toSingleValueMap

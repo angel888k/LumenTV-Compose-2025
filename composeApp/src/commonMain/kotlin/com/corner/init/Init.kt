@@ -1,9 +1,9 @@
 package com.corner.init
 
 import androidx.compose.runtime.mutableStateOf
-import com.corner.bean.Hot
-import com.corner.bean.SettingStore
-import com.corner.bean.SettingType
+import com.corner.util.Hot
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
 import com.corner.catvodcore.config.ApiConfig
 import com.corner.catvodcore.config.init
 import com.corner.catvodcore.enum.ConfigType
@@ -26,7 +26,6 @@ import org.koin.core.context.startKoin
 import org.slf4j.LoggerFactory
 import androidx.compose.runtime.State
 import com.corner.catvodcore.viewmodel.GlobalAppState.resetAllStates
-import com.corner.util.play.BrowserUtils
 import com.corner.util.spider.SpiderTestUtil
 
 private val log = LoggerFactory.getLogger("Init")
@@ -155,6 +154,7 @@ class Init {
 
                 if (StringUtils.isBlank(vod)) {
                     log.warn("未配置点播源，跳过初始化")
+                    hideProgress()
                     _isInitializedSuccessfully.value = false  // 初始化失败
                     return
                 }

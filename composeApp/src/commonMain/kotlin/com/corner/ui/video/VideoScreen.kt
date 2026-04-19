@@ -39,8 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.WindowScope
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
@@ -58,7 +56,7 @@ import com.corner.ui.nav.vm.VideoViewModel
 import com.corner.ui.scene.*
 import com.corner.util.spider.SpiderTestUtil
 import com.corner.util.isScrollingUp
-import com.corner.ui.components.AutoSizeImageWithLoading
+import com.corner.ui.scene.AutoSizeImageWithLoading
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

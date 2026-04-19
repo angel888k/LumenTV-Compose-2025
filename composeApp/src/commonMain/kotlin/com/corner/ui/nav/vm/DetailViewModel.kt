@@ -3,10 +3,10 @@ package com.corner.ui.nav.vm
 import com.corner.catvodcore.viewmodel.SiteViewModel
 import com.corner.ui.scene.SnackBar
 import androidx.compose.runtime.*
-import com.corner.bean.SettingStore
-import com.corner.bean.SettingType
-import com.corner.bean.enums.PlayerType
-import com.corner.bean.getPlayerSetting
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
+import com.corner.service.player.PlayerType
+import com.corner.util.settings.getPlayerSetting
 import com.corner.catvodcore.bean.Vod
 import com.corner.catvodcore.bean.Vod.Companion.getPage
 import com.corner.util.core.playResultIsEmpty
@@ -34,10 +34,9 @@ import com.corner.ui.player.PlayerLifecycleManager
 import com.corner.ui.player.PlayerLifecycleState.*
 import com.corner.ui.player.vlcj.VlcJInit
 import com.corner.ui.player.vlcj.VlcjFrameController
-import com.corner.util.Constants
+import com.corner.util.core.Constants
 import com.corner.util.core.isEmpty
 import com.corner.util.play.BrowserUtils
-import com.corner.util.play.Play
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -1135,14 +1134,14 @@ class DetailViewModel : BaseViewModel() {
             if (nextIndex >= currentDetail.subEpisode.size) {
                 val nextTabIndex = currentDetail.currentTabIndex + 1
                 val totalEpisodes = currentDetail.currentFlag.episodes.size
-                val totalPages = (totalEpisodes + Constants.EpSize - 1) / Constants.EpSize
+                val totalPages = (totalEpisodes + Constants.EP_SIZE - 1) / Constants.EP_SIZE
 
                 if (nextTabIndex >= totalPages) {
                     return null
                 }
 
-                val start = nextTabIndex * Constants.EpSize
-                val end = minOf(start + Constants.EpSize, totalEpisodes)
+                val start = nextTabIndex * Constants.EP_SIZE
+                val end = minOf(start + Constants.EP_SIZE, totalEpisodes)
                 val newSubEpisodes = currentDetail.currentFlag.episodes.subList(start, end)
                 val newFirstEp = newSubEpisodes.firstOrNull() ?: return null
 

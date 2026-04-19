@@ -2,10 +2,12 @@ package com.corner.catvodcore.loader
 
 import com.corner.catvodcore.Constant
 import com.corner.catvodcore.config.ApiConfig
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
 import com.corner.ui.scene.SnackBar
 import com.corner.util.net.Http
 import com.corner.util.io.Paths
-import com.corner.util.net.Urls
+import com.corner.util.io.Urls
 import com.corner.util.net.Utils
 import com.corner.util.thisLogger
 import com.github.catvod.crawler.Spider
@@ -226,7 +228,9 @@ object JarLoader {
             // 网络连接错误，通常是代理问题
             log.error("加载Spider时网络连接失败: key={}, api={}", key, api, e)
             SnackBar.postMsg(
-                "爬虫加载失败：无法连接到网络\n\n可能原因：\n1. 代理服务器未启动（当前配置: ${com.corner.bean.SettingStore.getSettingItem(com.corner.bean.SettingType.PROXY)}）\n2. 网络连接异常\n3. 目标服务器不可达\n\n建议：检查代理设置或关闭代理后重试",
+                "爬虫加载失败：无法连接到网络\n\n可能原因：\n1. 代理服务器未启动（当前配置: ${
+                    SettingStore.getSettingItem(
+                        SettingType.PROXY)}）\n2. 网络连接异常\n3. 目标服务器不可达\n\n建议：检查代理设置或关闭代理后重试",
                 type = SnackBar.MessageType.ERROR
             )
             return Spider()

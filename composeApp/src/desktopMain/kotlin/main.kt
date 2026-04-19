@@ -9,7 +9,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.corner.RootContent
-import com.corner.bean.SettingStore
+import com.corner.util.settings.SettingStore
 import com.corner.util.net.Utils.printSystemInfo
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.init.Init

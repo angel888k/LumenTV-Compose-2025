@@ -1,6 +1,6 @@
 package com.corner.service.player
 
-import com.corner.bean.enums.PlayerType
+import com.corner.service.player.PlayerType
 import com.corner.ui.player.PlayerLifecycleManager
 import com.corner.ui.player.vlcj.VlcjFrameController
 import kotlinx.coroutines.CoroutineScope

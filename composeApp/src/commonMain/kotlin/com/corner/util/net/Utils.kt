@@ -72,7 +72,7 @@ object Utils {
             if (webHttpHeaderMap.isEmpty()) {
                 webHttpHeaderMap = HashMap<String, String>()
                 webHttpHeaderMap[org.apache.http.HttpHeaders.CONNECTION] = "keep-alive"
-                webHttpHeaderMap[org.apache.http.HttpHeaders.USER_AGENT] = Constants.ChromeUserAgent
+                webHttpHeaderMap[org.apache.http.HttpHeaders.USER_AGENT] = Constants.CHROME_UA
                 webHttpHeaderMap[org.apache.http.HttpHeaders.ACCEPT] = "*/*"
             }
         }

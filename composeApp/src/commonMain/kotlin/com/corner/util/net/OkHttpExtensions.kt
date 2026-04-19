@@ -1,6 +1,5 @@
-package com.corner.util.network
+package com.corner.util.net
 
-import com.corner.util.net.Http
 import com.corner.util.net.interceptor.Interceptors.adDomainInterceptor
 import com.corner.util.net.interceptor.Interceptors.deflateInterceptor
 import okhttp3.OkHttpClient

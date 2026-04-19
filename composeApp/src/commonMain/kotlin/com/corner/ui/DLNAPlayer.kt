@@ -13,10 +13,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowScope
-import com.corner.bean.SettingStore
-import com.corner.bean.SettingType
-import com.corner.bean.enums.PlayerType
-import com.corner.bean.getPlayerSetting
+import com.corner.util.settings.SettingStore
+import com.corner.util.settings.SettingType
+import com.corner.service.player.PlayerType
+import com.corner.util.settings.getPlayerSetting
 import com.corner.catvodcore.viewmodel.GlobalAppState
 import com.corner.catvodcore.viewmodel.GlobalAppState.hideProgress
 import com.corner.catvodcore.viewmodel.GlobalAppState.showProgress
