@@ -59,6 +59,59 @@ suspend fun errorResp(call: ApplicationCall, msg: String) {
 
 fun Application.configureRouting() {
     routing {
+        get("/openapi/documentation.yaml") {
+            val resource = this::class.java.classLoader.getResourceAsStream("openapi/documentation.yaml")
+            if (resource != null) {
+                val content = resource.bufferedReader().use { it.readText() }
+                call.respondText(content, ContentType.parse("application/yaml"))
+            } else {
+                call.respondText("OpenAPI 文档未找到", status = HttpStatusCode.NotFound)
+            }
+        }
+
+        get("/swagger") {
+            val html = """
+                <!DOCTYPE html>
+                <html lang="zh-CN">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>LumenTV API Documentation</title>
+                    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui.css" />
+                    <style>
+                        html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+                        *, *:before, *:after { box-sizing: inherit; }
+                        body { margin:0; background: #fafafa; }
+                    </style>
+                </head>
+                <body>
+                    <div id="swagger-ui"></div>
+                    <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>
+                    <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>
+                    <script>
+                        window.onload = function() {
+                            const ui = SwaggerUIBundle({
+                                url: '/openapi/documentation.yaml',
+                                dom_id: '#swagger-ui',
+                                deepLinking: true,
+                                presets: [
+                                    SwaggerUIBundle.presets.apis,
+                                    SwaggerUIStandalonePreset
+                                ],
+                                plugins: [
+                                    SwaggerUIBundle.plugins.DownloadUrl
+                                ],
+                                layout: "StandaloneLayout"
+                            });
+                            window.ui = ui;
+                        };
+                    </script>
+                </body>
+                </html>
+            """.trimIndent()
+            call.respondText(html, ContentType.Text.Html)
+        }
+        
         // 处理 CORS 预检请求
         options("/video/proxy") {
             call.response.header("Access-Control-Allow-Origin", call.request.headers["Origin"] ?: "*")
@@ -79,11 +132,11 @@ fun Application.configureRouting() {
          * 获取浏览器状态
          */
         get("/api/playwright/status") {
-            val status = mapOf(
-                "available" to PlaywrightBrowserManager.isBrowserAvailable(),
-                "path" to PlaywrightBrowserManager.getBrowserExecutablePath(),
-                "cacheDir" to PlaywrightBrowserManager.getBrowserCacheDir(),
-                "tempDir" to PlaywrightBrowserManager.getTempDir()
+            val status = mapOf<String, String>(
+                "available" to PlaywrightBrowserManager.isBrowserAvailable().toString(),
+                "path" to (PlaywrightBrowserManager.getBrowserExecutablePath() ?: ""),
+                "cacheDir" to (PlaywrightBrowserManager.getBrowserCacheDir() ?: ""),
+                "tempDir" to (PlaywrightBrowserManager.getTempDir() ?: "")
             )
             call.respond(status)
         }
@@ -101,8 +154,8 @@ fun Application.configureRouting() {
                 SnackBar.postMsg(message, type = SnackBar.MessageType.INFO, key = "api_progress")
             }
                     
-            call.respond(mapOf(
-                "success" to true,
+            call.respond(mapOf<String, String>(
+                "success" to "true",
                 "message" to "加载指示器已显示"
             ))
         }
@@ -114,8 +167,8 @@ fun Application.configureRouting() {
         get("/api/progress/hide") {
             hideProgress()
                     
-            call.respond(mapOf(
-                "success" to true,
+            call.respond(mapOf<String, String>(
+                "success" to "true",
                 "message" to "加载指示器已隐藏"
             ))
         }
@@ -152,11 +205,37 @@ fun Application.configureRouting() {
          * 根目录
          */
         get("/") {
-            val htmlFile = File("src/commonMain/resources/LumenTV Proxy Placeholder Webpage.html")
-            if (htmlFile.exists()) {
-                call.respondFile(htmlFile)
-            } else {
-                call.respondText("文件未找到", status = HttpStatusCode.NotFound)
+            try {
+                // 从 classpath 加载静态资源
+                val resource = this::class.java.classLoader.getResource("LumenTV Proxy Placeholder Webpage.html")
+                if (resource != null) {
+                    val content = resource.readText(Charsets.UTF_8)
+                    call.respondText(content, ContentType.Text.Html)
+                } else {
+                    // Fallback: 尝试从文件系统读取
+                    val htmlFile = File("src/commonMain/resources/LumenTV Proxy Placeholder Webpage.html")
+                    if (htmlFile.exists()) {
+                        call.respondFile(htmlFile)
+                    } else {
+                        call.respondText(
+                            "欢迎使用 LumenTV Compose 本地服务器\n\n"
+                            + "可用端点:\n"
+                            + "- /health - 健康检查\n"
+                            + "- /swagger - API 文档\n"
+                            + "- /postMsg - 发送消息通知\n"
+                            + "- /proxy - 代理请求\n"
+                            + "- /video/proxy - 视频代理\n"
+                            + "- /ws/video-events - WebSocket 连接",
+                            status = HttpStatusCode.OK
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                log.error("根路径访问失败", e)
+                call.respondText(
+                    "服务器内部错误: ${e.message}",
+                    status = HttpStatusCode.InternalServerError
+                )
             }
         }
 
@@ -198,7 +277,7 @@ fun Application.configureRouting() {
                 val msg = requestBody["msg"]
                 
                 if (msg.isNullOrBlank()) {
-                    call.respond(HttpStatusCode.BadRequest, mapOf(
+                    call.respond(HttpStatusCode.BadRequest, mapOf<String, Any>(
                         "error" to "消息内容不能为空",
                         "required_fields" to listOf("msg"),
                         "optional_fields" to listOf("type", "priority", "key")
@@ -223,19 +302,14 @@ fun Application.configureRouting() {
                 
                 SnackBar.postMsg(msg, priority, messageType, key)
                 
-                call.respond(HttpStatusCode.OK, mapOf(
-                    "success" to true,
-                    "message" to "消息已发送",
-                    "data" to mapOf(
-                        "content" to msg,
-                        "type" to messageType.toString(),
-                        "priority" to priority,
-                        "key" to key
-                    )
-                ))
+                call.respondText(
+                    """{"success":true,"message":"消息已发送","data":{"content":"${msg.replace("\"", "\\\"")}","type":"${messageType}","priority":$priority,"key":"${key ?: ""}"}}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.OK
+                )
             } catch (e: Exception) {
                 log.error("处理 POST /postMsg 请求失败", e)
-                call.respond(HttpStatusCode.BadRequest, mapOf(
+                call.respond(HttpStatusCode.BadRequest, mapOf<String, String>(
                     "error" to "请求格式错误: ${e.message}"
                 ))
             }

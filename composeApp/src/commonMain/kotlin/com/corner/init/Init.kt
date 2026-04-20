@@ -49,6 +49,7 @@ class Init {
         suspend fun start() {
             showProgress()
             try {
+                initJarFileSystemProvider()
                 //Koin
                 initKoin()
                 //Http Server
@@ -67,6 +68,19 @@ class Init {
                 SpiderTestUtil.initializeSpiderStatuses()
             } finally {
                 hideProgress()
+            }
+        }
+        
+        /**
+         * 初始化 JAR 文件系统提供者
+         * 解决 Playwright 在生产环境下无法从 JAR 中提取驱动的问题
+         */
+        private fun initJarFileSystemProvider() {
+            try {
+                Class.forName("jdk.nio.zipfs.ZipFileSystemProvider")
+                log.info("JAR 文件系统提供者已加载")
+            } catch (e: Exception) {
+                log.warn("加载 JAR 文件系统提供者失败，Playwright 可能无法正常工作: ${e.message}")
             }
         }
 

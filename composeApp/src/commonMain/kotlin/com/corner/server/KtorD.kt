@@ -2,12 +2,15 @@ package com.corner.server
 
 import com.corner.server.plugins.configureRouting
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.websocket.*
 import io.netty.handler.codec.http.HttpServerCodec
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.seconds
 
@@ -94,9 +97,20 @@ object KtorD {
                 log.info("KtorD started successfully on port: {}", actualPort)
                 break
             } catch (e: Exception) {
-                log.debug("Port {} is unavailable, trying next... ({})", tryPort, e.message)
-                ++tryPort
-                server?.stop()
+                // 只处理端口占用异常，其他异常直接抛出
+                val isPortOccupied = e.message?.contains("BindException") == true || 
+                                   e.message?.contains("Address already in use") == true ||
+                                   e.cause?.javaClass?.name?.contains("BindException") == true
+                
+                if (isPortOccupied) {
+                    log.debug("Port {} is occupied, trying next port...", tryPort)
+                    ++tryPort
+                    server?.stop()
+                } else {
+                    // 非端口占用错误，直接抛出
+                    log.error("KtorD 启动失败（非端口占用）", e)
+                    throw e
+                }
             }
         } while (tryPort < MAX_PORT)
         
@@ -120,6 +134,14 @@ object KtorD {
  * KtorD 模块
  */
 private fun Application.module() {
+    install(ContentNegotiation) {
+        json(Json {
+            prettyPrint = true
+            isLenient = true
+            ignoreUnknownKeys = true
+        })
+    }
+    
     install(WebSockets) {
         pingPeriod = null
         timeout = 15.seconds
@@ -149,6 +171,5 @@ private fun Application.module() {
         allowCredentials = false
     }
 
-    // 路由
     configureRouting()
 }

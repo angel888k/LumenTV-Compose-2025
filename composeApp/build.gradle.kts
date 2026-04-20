@@ -20,9 +20,6 @@ dependencies {
 
 kotlin {
     jvm("desktop")
-    
-    // Configure Java toolchain (Java 8+ required, Java 17+ recommended)
-    jvmToolchain(17)
 
     sourceSets {
         commonMain {
@@ -195,7 +192,8 @@ compose.desktop {
                 "jdk.unsupported",
                 "java.naming",
                 "java.base",
-                "java.sql"
+                "java.sql",
+                "jdk.zipfs"  // JAR 文件系统支持（Playwright 需要）
             )
             val dir = project.layout.projectDirectory.dir("src/desktopMain/appResources")
             println(dir)
