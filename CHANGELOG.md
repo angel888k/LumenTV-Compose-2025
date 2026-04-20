@@ -1,4 +1,7 @@
 # LumenTV Compose
+## v1.1.7
+- 紧急修复：Playwright 驱动加载问题
+- 紧急修复：Api问题
 ## v1.1.6
 - 新增：web播放器磁链支持（webRTC）
 - 新增：播放器迷你播放条
